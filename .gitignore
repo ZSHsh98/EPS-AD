@@ -1,0 +1,12 @@
+save_*
+__pycache__
+*.pyc
+run.sh
+exp_results
+data*
+image*
+score_diff*
+pretrained
+*.pt
+*.pkl
+*.pth

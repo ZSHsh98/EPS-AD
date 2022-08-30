@@ -1,0 +1,76 @@
+// {
+// 	// 使用 IntelliSense 了解相关属性。 
+// 	// 悬停以查看现有属性的描述。
+// 	// 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+// 	"version": "0.2.0",
+// 	"configurations": [
+// 		{
+// 			"name": "Python: eval_sde_adv",
+// 			"type": "python",
+// 			"request": "launch",
+// 			"program": "eval_sde_adv.py",
+// 			"args": [
+// 				"--num_sub","490",	
+// 				"--t", "100",
+// 				"--detection_flag",
+// 				"--detection_ensattack_flag",
+// 				"--adv_batch_size", "500",
+// 				"--perb_image",
+// 				"--diffuse_t", "2",
+// 				// "--detection_ensattack_norm_flag",
+// 				// "--adv_eps","0.02"			
+// 			],
+// 			"env": {
+// 				"CUDA_VISIBLE_DEVICES": "0",
+//                 "CUDA_HOME": "/mnt/cephfs/smil/cuda/cuda-11.0",
+//                 "PATH": "/mnt/cephfs/smil/cuda/cuda-11.0/bin:/home/zhangshuhai/.vscode-server/bin/30d9c6cd9483b2cc586687151bcbcd635f373630/bin/remote-cli:/mnt/cephfs/home/zhangshuhai/anaconda3/bin:/mnt/cephfs/home/zhangshuhai/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+//                 "CC": "gcc-7",
+//                 "CXX": "g++-7",
+//                 "TORCH_CUDA_ARCH_LIST": "6.1 8.0",
+// 			},
+//             "console": "integratedTerminal",
+// 			"justMyCode": false
+// 		}
+// 	]
+// }
+
+// --datapath '/mnt/cephfs/mixed/dataset/imagenet' --num_sub 500  --adv_batch_size 20 --detection_datapath './score_diffusion_t_imagenet'  --detection_flag --detection_ensattack_flag --detection_ensattack_norm_flag \
+// --config imagenet.yml -i imagenet --domain imagenet --classifier_name imagenet-resnet50
+{
+	// 使用 IntelliSense 了解相关属性。 
+	// 悬停以查看现有属性的描述。
+	// 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Python: eval_sde_adv",
+			"type": "python",
+			"request": "launch",
+			"program": "eval_sde_adv.py",
+			"args": [
+				"--num_sub", "6",
+				"--adv_batch_size", "3",
+				"--datapath", "/mnt/cephfs/mixed/dataset/imagenet",
+				"--detection_datapath", "./score_diffusion_t_imagenet_debug",
+				"--detection_flag", 
+				"--detection_ensattack_flag" ,
+				"--single_vector_norm_flag",
+				"--config", "imagenet.yml", 
+				"-i", "imagenet",
+				"--domain", "imagenet",
+				"--classifier_name", "imagenet-resnet50",	
+
+			],
+			"env": {
+				"CUDA_VISIBLE_DEVICES": "0",
+                "CUDA_HOME": "/mnt/cephfs/smil/cuda/cuda-11.0",
+                "PATH": "/mnt/cephfs/smil/cuda/cuda-11.0/bin:/home/zhangshuhai/.vscode-server/bin/30d9c6cd9483b2cc586687151bcbcd635f373630/bin/remote-cli:/mnt/cephfs/home/zhangshuhai/anaconda3/bin:/mnt/cephfs/home/zhangshuhai/anaconda3/condabin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+                "CC": "gcc-7",
+                "CXX": "g++-7",
+                "TORCH_CUDA_ARCH_LIST": "6.1 8.0",
+			},
+            "console": "integratedTerminal",
+			"justMyCode": false
+		}
+	]
+}
