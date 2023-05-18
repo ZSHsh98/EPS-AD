@@ -23,11 +23,11 @@ toydata
 *.sh
 cifar-data
 cifar_md_mean_var
-deep_Mahalanobis_detector
+deep_Mahalanobis_detector/
 drawline
 models
-Rectified-Rejection
-VT-pytorch
+Rectified-Rejection/
+VT-pytorch/
 ablation_R
 baseline*
 bash_*
