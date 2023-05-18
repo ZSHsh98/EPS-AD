@@ -1,47 +1,32 @@
-# Diffusion Models for Adversarial Purification
+# Detecting Adversarial Data by Probing Multiple Perturbations Using Expected Perturbation Score
 
 <p align="center">
-  <img width="460" height="300" src="./assets/teaser_v7.jpeg">
+  <img width="630"  src="./assets/overview.jpg">
 </p>
 
-Official PyTorch implementation of the ICML 2022 paper:<br>
-**[Diffusion Models for Adversarial Purification](https://arxiv.org/abs/2205.07460)**
-<br>
-Weili Nie, Brandon Guo, Yujia Huang, Chaowei Xiao, Arash Vahdat, Anima Anandkumar<br>
-https://diffpure.github.io <br>
+Official PyTorch implementation of the ICML 2023 paper:
 
-Abstract: *Adversarial purification refers to a class of defense methods that remove adversarial perturbations using a
-generative model. These methods do not make assumptions on the form of attack and the classification model, and thus can
-defend pre-existing classifiers against unseen threats. However, their performance currently falls behind adversarial
-training methods. In this work, we propose <i>DiffPure</i> that uses diffusion models for adversarial purification:
-Given an adversarial example, we first diffuse it with a small amount of noise following a forward diffusion process,
-and then recover the clean image through a reverse generative process. To evaluate our method against strong adaptive
-attacks in an efficient and scalable way, we propose to use the adjoint method to compute full gradients of the reverse
-generative process. Extensive experiments on three image datasets including CIFAR-10, ImageNet and CelebA-HQ with three
-classifier architectures including ResNet, WideResNet and ViT demonstrate that our method achieves the state-of-the-art
-results, outperforming current adversarial training and adversarial purification methods, often by a large margin.*
+**Detecting Adversarial Data by Probing Multiple Perturbations Using Expected Perturbation Score**
+<!-- **[Detecting Adversarial Data by Probing Multiple Perturbations Using Expected Perturbation Score](https://arxiv.org/abs/2205.07460)** -->
+
+Shuhai Zhang, Feng Liu, Jiahao Yang, Yifan Yang, Changsheng Li, Bo Han, Mingkui Tan
+
+Abstract: *Adversarial detection aims to determine whether a given sample is an adversarial one based on the discrepancy between natural and adversarial distri- butions. Unfortunately, estimating or comparing two data distributions is extremely difficult, es- pecially in high-dimension spaces. Recently, the gradient of log probability density (a.k.a., score) w.r.t. the sample is used as an alternative statistic to compute. However, we find that the score is sensitive in identifying adversarial samples due to insufficient information with one sample only. In this paper, we propose a new statistic called expected perturbation score (EPS), which is es- sentially the expected score of a sample after vari- ous perturbations. Specifically, to obtain adequate information regarding one sample, we perturb it by adding various noises to capture its multi-view observations. We theoretically prove that EPS is a proper statistic to compute the discrepancy between two samples under mild conditions. In practice, we can use a pre-trained diffusion model to estimate EPS for each sample. Last, we pro- pose an EPS-based adversarial detection (EPS- AD) method, in which we develop EPS-based maximum mean discrepancy (MMD) as a metric to measure the discrepancy between the test sam- ple and natural samples. We also prove that the EPS-based MMD between natural and adversarial samples is larger than that among natural samples. Extensive experiments show the superior adver- sarial detection performance of our EPS-AD.*
 
 ## Requirements
 
-- 1-4 high-end NVIDIA GPUs with 32 GB of memory.
-- 64-bit Python 3.8.
-- CUDA=10.0 and docker must be installed first.
-- Installation of the required library dependencies with Docker:
-    ```bash
-    docker build -f diffpure.Dockerfile --tag=diffpure:0.0.1 .
-    docker run -it -d --gpus 0 --name diffpure --shm-size 8G -v $(pwd):/workspace -p 5001:6006 diffpure:0.0.1
-    docker exec -it diffpure bash
-    ```
+- An RTX 3090 with 24 GB of memory.
+- Python 3.7
+- Pytorch 1.7.1
 
 ## Data and pre-trained models
 
-Before running our code on ImageNet and CelebA-HQ, you have to first download these two datasets. For example, you can
-follow [the instructions to download CelebA-HQ](https://github.com/suvojit-0x55aa/celebA-HQ-dataset-download). Note that
+Before running our code on ImageNet, you have to first download ImageNet. Note that
 we use the LMDB format for ImageNet, so you may need
 to [convert the ImageNet dataset to LMDB](https://github.com/Lyken17/Efficient-PyTorch/tree/master/tools). There is no
 need to download CIFAR-10 separately.
 
-Note that you have to put all the datasets in the `datasest` directory.
+Note that you have to put the datasets in the `datasest` directory.
 
 For the pre-trained diffusion models, you need to first download them from the following links:
 
@@ -49,140 +34,66 @@ For the pre-trained diffusion models, you need to first download them from the f
   CIFAR-10: (`vp/cifar10_ddpmpp_deep_continuous`: [download link](https://drive.google.com/file/d/16_-Ahc6ImZV5ClUc0vM5Iivf8OJ1VSif/view?usp=sharing))
 - [Guided Diffusion](https://github.com/openai/guided-diffusion) for
   ImageNet: (`256x256 diffusion unconditional`: [download link](https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt))
-- [DDPM](https://github.com/ermongroup/SDEdit) for CelebA-HQ:  (`CelebA-HQ`: [download link](https://image-editing-test-12345.s3-us-west-2.amazonaws.com/checkpoints/celeba_hq.ckpt))
 
-For the pre-trained classifiers, most of them do not need to be downloaded separately, except for
-
-- `attribute classifiers` from [gan-ensembling](https://github.com/chail/gan-ensembling) on
-  CelebA-HQ: [download link](http://latent-composition.csail.mit.edu/other_projects/gan_ensembling/zips/pretrained_classifiers.zip)
-- `wideresnet-70-16` on CIFAR-10: TBD
-- `resnet-50` on CIFAR-10: TBD
-- `wrn-70-16-dropout` on CIFAR-10: TBD
-
-Note that you have to put all the pretrained models in the `pretrained` directory.
 
 ## Run experiments on CIFAR-10
 
-### AutoAttack Linf
+**1. Train a deep kernel for MMD.**
 
-- To get results of defending against AutoAttack Linf (the `Rand` version):
-
-```bash
-cd run_scripts/cifar10
-bash run_cifar_rand_inf.sh [seed_id] [data_id]  # WideResNet-28-10
-bash run_cifar_rand_inf_70-16-dp.sh [seed_id] [data_id]  # WideResNet-70-16
-bash run_cifar_rand_inf_rn50.sh [seed_id] [data_id]  # ResNet-50
+- To obtain the EPSs of nature samples and adversarial samples under FGSM and FGSM_L2 attack with $\epsilon=1/255$ :
+```
+CUDA_VISIBLE_DEVICES=0
+python eval_epsad.py  --num_sub 10000 \
+    --adv_batch_size 200 \
+    --detection_datapath './score_diffusion_t_cifar_1w'  \
+    --epsilon 0.00392 \
+    --diffuse_t 50  \
+    --perb_image \
+    --attack_methods FGSM FGSM_L2 \
+    --single_vector_norm_flag \
+    --generate_1w_flag
 ```
 
-- To get results of defending against AutoAttack Linf (the `Standard` version):
-
-```bash
-cd run_scripts/cifar10
-bash run_cifar_stand_inf.sh [seed_id] [data_id]  # WideResNet-28-10
-bash run_cifar_stand_inf_70-16-dp.sh [seed_id] [data_id]  # WideResNet-70-16
-bash run_cifar_stand_inf_rn50.sh [seed_id] [data_id]  # ResNet-50
+- To train a deep kernel MMD with the EPSs of FGSM and FGSM_L2 adversarial samples:
+```
+CUDA_VISIBLE_DEVICES=0
+python train_D_extractor_2.py --epochs 200 --lr 0.00002 --id 8 --sigma0 15 --sigma 100  --epsilon 2 --feature_dim 300 --dataset cifar
 ```
 
-Note that [seed_id] is used for getting error bars, and [data_id] is used for sampling a fixed set of images.
+Note that through all our experiments, we use only FGSM and FGSM-$\ell_{2}$ adversarial samples ($\epsilon=1/255$), $10,000$ each, along with $10,000$ nature samples to calculate their EPSs to train the deep kernel, which can also be trained on a general public dataset. Moreover, our method is suitable for detecting all the $\ell_2$ and $\ell_\infty$ adversarial samples.
 
-### AutoAttack L2
+In the following, we use the EPSs of a set of nature samples with size=500 as the refernce, then perform adversarial detection with the trained deep-kernel MMD.
 
-- To get results of defending against AutoAttack L2 (the `Rand` version):
+**2. Detecting adversarial data with EPS-AD**
 
-```bash
-cd run_scripts/cifar10
-bash run_cifar_rand_L2.sh [seed_id] [data_id]  # WideResNet-28-10
-bash run_cifar_rand_L2_70-16-dp.sh [seed_id] [data_id]  # WideResNet-70-16
-bash run_cifar_rand_L2_rn50.sh [seed_id] [data_id]  # ResNet-50
+- To obtain EPSs of adversarial samples with other attack intensities (e.g., $\epsilon=4/255$):
 ```
 
-- To get results of defending against AutoAttack L2 (the `Standard` version):
-
-```bash
-cd run_scripts/cifar10
-bash run_cifar_stand_L2.sh [seed_id] [data_id]  # WideResNet-28-10
-bash run_cifar_stand_L2_70-16-dp.sh [seed_id] [data_id]  # WideResNet-70-16
-bash run_cifar_stand_L2_rn50.sh [seed_id] [data_id]  # ResNet-50
 ```
 
-Note that [seed_id] is used for getting error bars, and [data_id] is used for sampling a fixed set of images.
-
-### StAdv
-
-- To get results of defending against StAdv:
-
-```bash
-cd run_scripts/cifar10
-bash run_cifar_stadv_rn50.sh [seed_id] [data_id]  # ResNet-50
+- To obtain EPSs of nature samples:
 ```
 
-Note that [seed_id] is used for getting error bars, and [data_id] is used for sampling a fixed set of images.
-
-### BPDA+EOT
-
-- To get results of defending against BPDA+EOT:
-
-```bash
-cd run_scripts/cifar10
-bash run_cifar_bpda_eot.sh [seed_id] [data_id]  # WideResNet-28-10
 ```
 
-Note that [seed_id] is used for getting error bars, and [data_id] is used for sampling a fixed set of images.
+- To calculte the MMD between EPS of each test sample and EPSs of natural samples and obatin a AUROC:
+```
+
+```
+
+
 
 ## Run experiments on ImageNet
 
-### AutoAttack Linf
-
-- To get results of defending against AutoAttack Linf (the `Rand` version):
-
-```bash
-cd run_scripts/imagenet
-bash run_in_rand_inf.sh [seed_id] [data_id]  # ResNet-50
-bash run_in_rand_inf_50-2.sh [seed_id] [data_id]  # WideResNet-50-2
-bash run_in_rand_inf_deits.sh [seed_id] [data_id]  # DeiT-S
-```
-
-- To get results of defending against AutoAttack Linf (the `Standard` version):
-
-```bash
-cd run_scripts/imagenet
-bash run_in_stand_inf.sh [seed_id] [data_id]  # ResNet-50
-bash run_in_stand_inf_50-2.sh [seed_id] [data_id]  # WideResNet-50-2
-bash run_in_stand_inf_deits.sh [seed_id] [data_id]  # DeiT-S
-```
-
-Note that [seed_id] is used for getting error bars, and [data_id] is used for sampling a fixed set of images.
-
-## Run experiments on CelebA-HQ
-
-### BPDA+EOT
-
-- To get results of defending against BPDA+EOT:
-
-```bash
-cd run_scripts/celebahq
-bash run_celebahq_bpda_glasses.sh [seed_id] [data_id]  # the glasses attribute
-bash run_celebahq_bpda_smiling.sh [seed_id] [data_id]  # the smiling attribute
-```
-
-Note that [seed_id] is used for getting error bars, and [data_id] is used for sampling a fixed set of images.
-
-## License
-
-Please check the [LICENSE](LICENSE) file. This work may be used non-commercially, meaning for research or evaluation
-purposes only. For business inquiries, please contact
-[researchinquiries@nvidia.com](mailto:researchinquiries@nvidia.com).
 
 ## Citation
 
-Please cite our paper, if you happen to use this codebase:
 
 ```
-@inproceedings{nie2022DiffPure,
-  title={Diffusion Models for Adversarial Purification},
-  author={Nie, Weili and Guo, Brandon and Huang, Yujia and Xiao, Chaowei and Vahdat, Arash and Anandkumar, Anima},
+@inproceedings{zhangs2023EPSAD,
+  title={Detecting Adversarial Data by Probing Multiple Perturbations Using Expected Perturbation Score},
+  author={Shuhai Zhang, Feng Liu, Jiahao Yang, Yifan Yang, Changsheng Li, Bo Han, Mingkui Tan},
   booktitle = {International Conference on Machine Learning (ICML)},
-  year={2022}
+  year={2023}
 }
 ```
-

@@ -1,10 +1,3 @@
-# ---------------------------------------------------------------
-# Copyright (c) 2022, NVIDIA CORPORATION. All rights reserved.
-#
-# This work is licensed under the NVIDIA Source Code License
-# for DiffPure. To view a copy of this license, see the LICENSE file.
-# ---------------------------------------------------------------
-
 import argparse
 import logging
 import yaml
@@ -18,11 +11,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from autoattack import AutoAttack
-from stadv_eot.attacks import StAdvAttack
-
 import utils
-from utils import str2bool, get_accuracy, get_image_classifier, load_data, load_detection_data
+from utils import str2bool, get_image_classifier, load_detection_data
 
 from runners.diffpure_ddpm import Diffusion
 from runners.diffpure_guided import GuidedDiffusion
@@ -94,153 +84,6 @@ class SDE_Adv_Model(nn.Module):
 
 		return out if not args.detection_flag else x_re, ts_cat
 
-
-def eval_autoattack(args, config, model, x_val, y_val, adv_batch_size, log_dir):
-	ngpus = torch.cuda.device_count()
-	model_ = model
-	if ngpus > 1:
-		model_ = model.module
-
-	attack_version = args.attack_version  # ['standard', 'rand', 'custom']
-	if attack_version == 'standard':
-		attack_list = ['apgd-ce', 'apgd-t', 'fab-t', 'square']
-	elif attack_version == 'rand':
-		attack_list = ['apgd-ce', 'apgd-dlr']
-	elif attack_version == 'custom':
-		attack_list = args.attack_type.split(',')
-	else:
-		raise NotImplementedError(f'Unknown attack version: {attack_version}!')
-	print(f'attack_version: {attack_version}, attack_list: {attack_list}')  # ['apgd-ce', 'apgd-t', 'fab-t', 'square']
-
-	# ---------------- apply the attack to classifier ----------------
-	print(f'apply the attack to classifier [{args.lp_norm}]...')
-	classifier = get_image_classifier(args.classifier_name).to(config.device)
-	adversary_resnet = AutoAttack(classifier, norm=args.lp_norm, eps=args.adv_eps,
-								  version=attack_version, attacks_to_run=attack_list,
-								  log_path=f'{log_dir}/log_resnet.txt', device=config.device)
-	if attack_version == 'custom':
-		adversary_resnet.apgd.n_restarts = 1
-		adversary_resnet.fab.n_restarts = 1
-		adversary_resnet.apgd_targeted.n_restarts = 1
-		adversary_resnet.fab.n_target_classes = 9
-		adversary_resnet.apgd_targeted.n_target_classes = 9
-		adversary_resnet.square.n_queries = 5000
-	if attack_version == 'rand':
-		adversary_resnet.apgd.eot_iter = args.eot_iter
-		print(f'[classifier] rand version with eot_iter: {adversary_resnet.apgd.eot_iter}')
-	print(f'{args.lp_norm}, epsilon: {args.adv_eps}')
-
-	x_adv_resnet = adversary_resnet.run_standard_evaluation(x_val, y_val, bs=adv_batch_size)
-	print(f'x_adv_resnet shape: {x_adv_resnet.shape}')
-	torch.save([x_adv_resnet, y_val], f'{log_dir}/x_adv_resnet_sd{args.seed}.pt')
-
-	# ---------------- apply the attack to sde_adv ----------------
-	print(f'apply the attack to sde_adv [{args.lp_norm}]...')
-	model_.reset_counter()
-	adversary_sde = AutoAttack(model, norm=args.lp_norm, eps=args.adv_eps,
-							   version=attack_version, attacks_to_run=attack_list,
-							   log_path=f'{log_dir}/log_sde_adv.txt', device=config.device)
-	if attack_version == 'custom':
-		adversary_sde.apgd.n_restarts = 1
-		adversary_sde.fab.n_restarts = 1
-		adversary_sde.apgd_targeted.n_restarts = 1
-		adversary_sde.fab.n_target_classes = 9
-		adversary_sde.apgd_targeted.n_target_classes = 9
-		adversary_sde.square.n_queries = 5000
-	if attack_version == 'rand':
-		adversary_sde.apgd.eot_iter = args.eot_iter
-		print(f'[adv_sde] rand version with eot_iter: {adversary_sde.apgd.eot_iter}')
-	print(f'{args.lp_norm}, epsilon: {args.adv_eps}')
-
-	x_adv_sde = adversary_sde.run_standard_evaluation(x_val, y_val, bs=adv_batch_size)
-	print(f'x_adv_sde shape: {x_adv_sde.shape}')
-	torch.save([x_adv_sde, y_val], f'{log_dir}/x_adv_sde_sd{args.seed}.pt')
-
-
-def detection_test(args, config, model, loader, adv_batch_size, log_dir):
-	# model :sde 
-	# {attack_type}/{perturbation}/
-	# score_list = [] #np.zeros(args.num_sub, args.t_size+1)
-	ngpus = torch.cuda.device_count()
-	model_ = model
-	if ngpus > 1:
-		model_ = model.module
-
-	attack_version = args.attack_version  # ['standard', 'rand', 'custom']
-	if attack_version == 'standard':
-		attack_list = ['apgd-ce', 'apgd-t', 'fab-t', 'square']
-	elif attack_version == 'rand':
-		attack_list = ['apgd-ce', 'apgd-dlr']
-	elif attack_version == 'custom':
-		attack_list = args.attack_type.split(',')
-	else:
-		raise NotImplementedError(f'Unknown attack version: {attack_version}!')
-	# attack_list = ['apgd-ce']
-	# attack_version = 'None'
-	print(f'attack_version: {attack_version}, attack_list: {attack_list}')  # ['apgd-ce', 'apgd-t', 'fab-t', 'square']
-
-	# ---------------- apply the attack to classifier ----------------
-	print(f'apply the attack to classifier [{args.lp_norm}]...')
-	classifier = get_image_classifier(args.classifier_name).to(config.device)
-	adversary_resnet = AutoAttack(classifier, norm=args.lp_norm, eps=args.adv_eps,
-								  version=attack_version, attacks_to_run=attack_list,
-								  log_path=f'{log_dir}/log_resnet.txt', device=config.device)
-	adversary_resnet.apgd.n_iter = 5
-
-	if attack_version == 'custom':
-		adversary_resnet.apgd.n_restarts = 1
-		adversary_resnet.fab.n_restarts = 1
-		adversary_resnet.apgd_targeted.n_restarts = 1
-		adversary_resnet.fab.n_target_classes = 9
-		adversary_resnet.apgd_targeted.n_target_classes = 9
-		adversary_resnet.square.n_queries = 5000
-	if attack_version == 'rand':
-		adversary_resnet.apgd.eot_iter = args.eot_iter
-		print(f'[classifier] rand version with eot_iter: {adversary_resnet.apgd.eot_iter}')
-	print(f'{args.lp_norm}, epsilon: {args.adv_eps}')
-
-	# get the score function
-	from score_sde import sde_lib
-	from score_sde.models import utils as mutils
-	rev_vpsde = model_.runner.rev_vpsde
-	sde = sde_lib.VPSDE(beta_min=rev_vpsde.beta_0, beta_max=rev_vpsde.beta_1, N=rev_vpsde.N)
-	score_fn = mutils.get_score_fn(sde, rev_vpsde.model, train=False, continuous=True)
-
-	score_list = []
-	score_adv_list = []
-	for i, (x, y) in enumerate(loader):
-		x = x.to(config.device)
-		# x = torch.rand_like(x,device=config.device)
-		y = y.to(config.device)
-		x_adv = adversary_resnet.run_standard_evaluation(x, y, bs=adv_batch_size)
-
-		with torch.no_grad():
-
-			
-			
-			denoise_data, ts_cat = model(x) # [args.t_size*b, c,h,w], [args.t_size*b]
-			denoise_data = torch.cat([x,denoise_data],dim=0)
-			ts_cat =  torch.cat([ts_cat[-x.shape[0]:],ts_cat],dim=0)
-			score = score_fn(denoise_data, ts_cat)
-			scores = score.view((args.t_size+1) * x.shape[0], -1).norm(dim=-1).view((args.t_size+1),-1)
-			score_list.append(scores)
-
-			output = adversary_resnet.get_logits(x)
-			correct_batch = y.eq(output.max(dim=1)[1])
-			x_adv = x_adv[correct_batch]
-			denoise_data, ts_cat = model(x_adv) # [args.t_size*b, c,h,w], [args.t_size*b]
-			denoise_data = torch.cat([x_adv,denoise_data],dim=0)
-			ts_cat =  torch.cat([ts_cat[-x_adv.shape[0]:],ts_cat],dim=0)
-			score = score_fn(denoise_data, ts_cat)
-			scores = score.view((args.t_size+1) * x.shape[0], -1).norm(dim=-1).view((args.t_size+1),-1)
-			score_adv_list.append(scores)
-
-			
-	score_npy = torch.cat(score_list,dim=1).cpu().numpy()
-	score_adv_npy = torch.cat(score_adv_list,dim=1).cpu().numpy()
-	# print("shape of score_npy:", score_npy.shape)
-	np.save(f'{log_dir}/score_npy.npy', score_npy)
-	np.save(f'{log_dir}/score_adv_npy.npy', score_adv_npy)
 
 
 def detection_test_ensattack(args, config, model, loader):
@@ -353,10 +196,8 @@ def detection_test_ensattack(args, config, model, loader):
 					else:
 						score_adv_list.append(score.detach())
 			
-				### 1w samples
-				# if args.clean_score_flag:
-				# if True:
-				if False:
+				if args.generate_1w_flag:
+					### 1w samples
 					if args.detection_ensattack_norm_flag:
 						exit(0)
 					elif args.single_vector_norm_flag:
@@ -372,19 +213,20 @@ def detection_test_ensattack(args, config, model, loader):
 						# score_adv_lists.append(torch.cat(score_adv_list, dim=0).view(len(score_adv_list),*x_adv.shape).cpu())
 					j += (n+1)
 				
-				### 500 samples
-				# elif not args.clean_score_flag:
-				if args.detection_ensattack_norm_flag:
-					score_adv_lists.append(torch.cat(score_adv_list, dim=0))
-				elif args.single_vector_norm_flag:
-					score_adv_lists.append(score_sum/value)
 				else:
-					score_adv_lists.append(torch.cat(score_adv_list, dim=0).view(len(score_adv_list),*x_adv.shape).cpu())
-				score_adv_list.clear()
+					### 500 samples
+					# elif not args.clean_score_flag:
+					if args.detection_ensattack_norm_flag:
+						score_adv_lists.append(torch.cat(score_adv_list, dim=0))
+					elif args.single_vector_norm_flag:
+						score_adv_lists.append(score_sum/value)
+					else:
+						score_adv_lists.append(torch.cat(score_adv_list, dim=0).view(len(score_adv_list),*x_adv.shape).cpu())
+					score_adv_list.clear()
 		
 		# if not args.clean_score_flag:
 		# if False:
-		if True:
+		if not args.generate_1w_flag:
 			print(f'attack_method: {attack_method}, robust accuracy: top1:{top1_counter/num_samples}--top5:{top5_counter/num_samples}')
 			print(f'attack and diffuison time: {time.time() - start_time}')
 			score_tensor = torch.cat(score_adv_lists, dim=1) if not args.single_vector_norm_flag else torch.cat(score_adv_lists, dim=0)
@@ -404,58 +246,6 @@ def detection_test_ensattack(args, config, model, loader):
 				else:
 					np.save(f'{args.detection_datapath}/scores_clean{isnorm}single_vector_norm{value}{isperb_image}{data_size}.npy', score_tensor.data.cpu().numpy())
 			score_adv_lists.clear()
-
-def eval_stadv(args, config, model, x_val, y_val, adv_batch_size, log_dir):
-	ngpus = torch.cuda.device_count()
-	model_ = model
-	if ngpus > 1:
-		model_ = model.module
-
-	x_val, y_val = x_val.to(config.device), y_val.to(config.device)
-	print(f'bound: {args.adv_eps}')
-
-	# apply the attack to resnet
-	print(f'apply the stadv attack to resnet...')
-	resnet = get_image_classifier(args.classifier_name).to(config.device)
-
-	start_time = time.time()
-	init_acc = get_accuracy(resnet, x_val, y_val, bs=adv_batch_size)
-	print('initial accuracy: {:.2%}, time elapsed: {:.2f}s'.format(init_acc, time.time() - start_time))
-
-	adversary_resnet = StAdvAttack(resnet, bound=args.adv_eps, num_iterations=100, eot_iter=args.eot_iter)
-
-	start_time = time.time()
-	x_adv_resnet = adversary_resnet(x_val, y_val)
-
-	robust_acc = get_accuracy(resnet, x_adv_resnet, y_val, bs=adv_batch_size)
-	print('robust accuracy: {:.2%}, time elapsed: {:.2f}s'.format(robust_acc, time.time() - start_time))
-
-	print(f'x_adv_resnet shape: {x_adv_resnet.shape}')
-	torch.save([x_adv_resnet, y_val], f'{log_dir}/x_adv_resnet_sd{args.seed}.pt')
-
-	# apply the attack to sde_adv
-	print(f'apply the stadv attack to sde_adv...')
-
-	start_time = time.time()
-	model_.reset_counter()
-	model_.set_tag('no_adv')
-	init_acc = get_accuracy(model, x_val, y_val, bs=adv_batch_size)
-	print('initial accuracy: {:.2%}, time elapsed: {:.2f}s'.format(init_acc, time.time() - start_time))
-
-	adversary_sde = StAdvAttack(model, bound=args.adv_eps, num_iterations=100, eot_iter=args.eot_iter)
-
-	start_time = time.time()
-	model_.reset_counter()
-	model_.set_tag()
-	x_adv_sde = adversary_sde(x_val, y_val)
-
-	model_.reset_counter()
-	model_.set_tag('sde_adv')
-	robust_acc = get_accuracy(model, x_adv_sde, y_val, bs=adv_batch_size)
-	print('robust accuracy: {:.2%}, time elapsed: {:.2f}s'.format(robust_acc, time.time() - start_time))
-
-	print(f'x_adv_sde shape: {x_adv_sde.shape}')
-	torch.save([x_adv_sde, y_val], f'{log_dir}/x_adv_sde_sd{args.seed}.pt')
 
 
 def robustness_eval(args, config):
@@ -480,25 +270,9 @@ def robustness_eval(args, config):
 	model = model.eval().to(config.device)
 
 	# load data
-	if not args.detection_flag:
-		x_val, y_val = load_data(args, adv_batch_size)
-	else:
-		loader = load_detection_data(args, adv_batch_size)
+	loader = load_detection_data(args, adv_batch_size, args.generate_1w_flag)
 
-
-	if not args.detection_flag:
-		# eval classifier and sde_adv against attacks
-		if args.attack_version in ['standard', 'rand', 'custom']:
-			eval_autoattack(args, config, model, x_val, y_val, adv_batch_size, log_dir)
-		elif args.attack_version == 'stadv':
-			eval_stadv(args, config, model, x_val, y_val, adv_batch_size, log_dir)
-		else:
-			raise NotImplementedError(f'unknown attack_version: {args.attack_version}')
-	else:
-		if args.detection_ensattack_flag:
-			detection_test_ensattack(args, config, model, loader)
-		else:
-			detection_test(args, config, model, loader, adv_batch_size, log_dir)
+	detection_test_ensattack(args, config, model, loader)
 
 	logger.close()
 
@@ -526,9 +300,10 @@ def parse_args_and_config():
 	# Detection
 	parser.add_argument('--clean_score_flag', action='store_true')
 	parser.add_argument('--detection_datapath', type=str, default='/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar')#./score_diffusion_t_cifar
-	parser.add_argument('--detection_flag', action='store_true')
-	parser.add_argument('--detection_ensattack_flag', action='store_true')
+	# parser.add_argument('--detection_flag', action='store_true')
+	# parser.add_argument('--detection_ensattack_flag', action='store_true')
 	parser.add_argument('--detection_ensattack_norm_flag', action='store_true')
+	parser.add_argument('--generate_1w_flag', action='store_true')
 	parser.add_argument('--single_vector_norm_flag', action='store_true')	
 	parser.add_argument('--t_size', type=int,default=10)
 	parser.add_argument('--diffuse_t', type=int,default=100)
@@ -551,10 +326,8 @@ def parse_args_and_config():
 
 	# additional attack settings
 	parser.add_argument('--num-steps', default=5, type=int,help='perturb number of steps')
-	# parser.add_argument('--step-size_adv', default=1./255, type=float,help='perturb step size') # 1./255./np.sqrt(2)
 	parser.add_argument('--random', default=True,help='random initialization for PGD')
 	parser.add_argument('--attack_methods', type=str, nargs='+',default=['MM_Attack', 'AA_Attack', 'PGD','BIM_L2','FGSM', 'CW', 'BIM',  'MIM', 'TIM', 'DI_MIM','FGSM_L2',  'PGD_L2'])
-	#default=['PGD','FGSM', 'CW', 'BIM',  'MIM', 'TIM', 'DI_MIM', 'FGSM_L2', 'BIM_L2', 'PGD_L2'])
 	parser.add_argument('--mim_momentum', default=1., type=float,help='mim_momentum')
 	parser.add_argument('--epsilon', default=0.01568, type=float,help='perturbation')#0.01568, type=float,help='perturbation')
 
@@ -614,44 +387,3 @@ def parse_args_and_config():
 if __name__ == '__main__':
 	args, config = parse_args_and_config()
 	robustness_eval(args, config)
-
-# CIFAR10
-# If you do not use the norm, run:
-# CUDA_VISIBLE_DEVICES=2 python eval_sde_adv.py --num_sub 490  --adv_batch_size 500 --detection_datapath './score_diffusion_t_cifar' --detection_flag --detection_ensattack_flag
-# use the norm, run:
-# CUDA_VISIBLE_DEVICES=2 python eval_sde_adv.py --num_sub 490  --adv_batch_size 500 --detection_datapath './score_diffusion_t_cifar'  --detection_flag --detection_ensattack_flag --detection_ensattack_norm_flag
-# debug:
-# CUDA_VISIBLE_DEVICES=3 python eval_sde_adv.py --num_sub 490  --adv_batch_size 128 --detection_datapath './score_diffusion_t_cifar_debug'  --detection_flag --detection_ensattack_flag --detection_ensattack_norm_flag --clean_score_flag
-
-# imagenet
-# CUDA_VISIBLE_DEVICES=7 python eval_sde_adv.py --datapath '/mnt/cephfs/mixed/dataset/imagenet' --num_sub 500  --adv_batch_size 20 --detection_datapath './score_diffusion_t_imagenet'  --detection_flag --detection_ensattack_flag --detection_ensattack_norm_flag \
-# --config imagenet.yml -i imagenet --domain imagenet --classifier_name imagenet-resnet50 --diffuse_t 50
-
-# CUDA_VISIBLE_DEVICES=2 python eval_sde_adv.py --datapath '/mnt/cephfs/mixed/dataset/imagenet' --num_sub 500  --adv_batch_size 32 --detection_datapath './score_diffusion_t_imagenet'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag \
-# --config imagenet.yml -i imagenet --domain imagenet --classifier_name imagenet-resnet50 
-# CUDA_VISIBLE_DEVICES=2 python eval_sde_adv.py --datapath '/mnt/cephfs/mixed/dataset/imagenet' --num_sub 500  --adv_batch_size 28 --detection_datapath './score_diffusion_t_imagenet'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag \
-# --config imagenet.yml -i imagenet --domain imagenet --classifier_name imagenet-resnet50 --clean_score_flag
-# --diffuse_t 50 --perb_image
-
-# motivation for imagenet 
-# CUDA_VISIBLE_DEVICES=5 python eval_sde_adv.py --datapath '/mnt/cephfs/mixed/dataset/imagenet' --num_sub 500  --adv_batch_size 32 --detection_datapath './score_diffusion_t_imagenet_motivation'  --detection_flag --detection_ensattack_flag --detection_ensattack_norm_flag \
-# --config imagenet.yml -i imagenet --domain imagenet --classifier_name imagenet-resnet50 --diffuse_t 50 --attack_methods FGSM PGD FGSM_L2 --perb_image
-# --clean_score_flag
-
-# motivation for cifar 
-# CUDA_VISIBLE_DEVICES=1 python eval_sde_adv.py --num_sub 500  --adv_batch_size 250 --detection_datapath './score_diffusion_t_cifar_motivation'  --detection_flag --detection_ensattack_flag --detection_ensattack_norm_flag --detection_ensattack_norm_flag \
-# --diffuse_t 50 --attack_methods FGSM PGD FGSM_L2 --perb_image
-# --clean_score_flag
-
-# 1w
-# CUDA_VISIBLE_DEVICES=6 python eval_sde_adv.py --datapath '/mnt/cephfs/mixed/dataset/imagenet' --num_sub 10000  --adv_batch_size 28 --detection_datapath '/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_imagenet'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag \
-# --config imagenet.yml -i imagenet --domain imagenet --classifier_name imagenet-resnet50 --diffuse_t 50  --perb_image
-# --clean_score_flag
-# CUDA_VISIBLE_DEVICES=2 python eval_sde_adv.py --datapath '/mnt/cephfs/mixed/dataset/imagenet' --num_sub 10000  --adv_batch_size 28 --detection_datapath '/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_imagenet'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag \
-# --config imagenet.yml -i imagenet --domain imagenet --classifier_name imagenet-resnet50 --diffuse_t 50  --perb_image
-# --attack_methods  FGSM_L2 --epsilon 0.00392
-
-# CUDA_VISIBLE_DEVICES=4 python eval_sde_adv.py  --num_sub 10000  --adv_batch_size 400 --detection_datapath '/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag \
-#  --diffuse_t 20  --perb_image --clean_score_flag
-# CUDA_VISIBLE_DEVICES=7 python eval_sde_adv.py  --num_sub 10000  --adv_batch_size 400 --detection_datapath '/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag \
-#  --diffuse_t 20  --perb_image --attack_methods  FGSM_L2 --epsilon 0.00392

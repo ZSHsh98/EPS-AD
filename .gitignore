@@ -27,13 +27,14 @@ deep_Mahalanobis_detector/
 drawline
 models
 Rectified-Rejection/
-VT-PyTorch_2/
+VT-PyTorch/
 ablation_R
 baseline*
 bash_*
 eval_sde_adv_*
 eval_sde_EPS_*
 eval_sde_OOD*
+eval_sde_adv
 gauss*
 HOG_test*
 motivation_plot*
@@ -41,6 +42,7 @@ nonperturb1
 plot*
 run_*
 scalar_*
-train_D*
+train_D_*
 trendy*
 vector_*
+cifar_norm_baseline*
