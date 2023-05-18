@@ -26,7 +26,7 @@ we use the LMDB format for ImageNet, so you may need
 to [convert the ImageNet dataset to LMDB](https://github.com/Lyken17/Efficient-PyTorch/tree/master/tools). There is no
 need to download CIFAR-10 separately.
 
-Note that you have to put the datasets in the `dataset` directory.
+Note that you have to put the datasets in the `./dataset` directory.
 
 For the pre-trained diffusion models, you need to first download them from the following links:
 
