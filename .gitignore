@@ -41,6 +41,6 @@ nonperturb1
 plot*
 run_*
 scalar_*
-trian_D_*
+train_D_*
 trendy_plot
 vector_*
