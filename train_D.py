@@ -36,6 +36,7 @@ parser.add_argument('--sigma0', default=0.5, type=float, help="0.5 for imagenet"
 parser.add_argument('--sigma', default=100, type=float, help="100 for imagenet")
 parser.add_argument('--isfull',  action='store_false',)
 parser.add_argument('--test_flag',  type=bool,default=False)
+parser.add_argument('--detection_datapath', type=str, default='./score_diffusion_t_cifar_1w')
 parser.add_argument('--resume', '-r', action='store_true',
 					help='resume from checkpoint')
 args = parser.parse_args()
@@ -58,6 +59,7 @@ id = args.id
 dataset = args.dataset # 'cifar',  'imagenet'
 img_size = 224 if dataset == 'imagenet' else 32
 batch_size =200 if dataset == 'imagenet' else 500
+SIZE = 500
 perb_image = True
 isperb_image = 'perb_image' if perb_image else ''
 stand_flag = True
@@ -65,39 +67,18 @@ isstand = '_stand' if stand_flag else ''
 data_size = ''
 t = 50 if dataset == 'imagenet' else 20
 print('==> Preparing data..')
-if 1:
-	# seen
-	# path = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_{dataset}/scores_cleansingle_vector_norm{t}{isperb_image}10000/'
-	# deit-s
-	# path = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_{dataset}_deits/scores_cleansingle_vector_norm{t}{isperb_image}5000/'
-	# wrn-70-16
-	# path = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_{dataset}_wrn_70_16/scores_cleansingle_vector_norm{t}{isperb_image}10000/'
-	# imagenet128
-	path = f"/mnt/cephfs/ec/home/zhangshuhai/DiffPure/score_diffusion_t_imagenet_128/scores_cleansingle_vector_norm50perb_image10000/"
-	ref_data = DatasetNPY(path)
-	ref_loader = DataLoader(ref_data, batch_size=batch_size, shuffle=True, num_workers=8)
 
-	# seen
-	# path_adv = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_{dataset}/scores_adv_FGSM_L2_0.00392_5single_vector_norm{t}{isperb_image}10000/'
-	# deit-s
-	# path_adv = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_{dataset}_deits/scores_adv_FGSM_L2_0.00392_5single_vector_norm{t}{isperb_image}5000/'
-	# wrn-70-16
-	# path_adv = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_{dataset}_wrn_70_16/scores_adv_FGSM_L2_0.00392_5single_vector_norm{t}{isperb_image}10000/'
-	# imagenet128
-	path_adv = f"/mnt/cephfs/ec/home/zhangshuhai/DiffPure/score_diffusion_t_imagenet_128/scores_adv_FGSM_L2_0.00784_5single_vector_norm50perb_image10000/"
-	adv_data1 = DatasetNPY(path_adv)
-	adv_data_loader1 = DataLoader(adv_data1, batch_size=batch_size, shuffle=True, num_workers=8)
+path = f'{args.detection_datapath}/scores_cleansingle_vector_norm50perb_image10000/'
+ref_data = DatasetNPY(path)
+ref_loader = DataLoader(ref_data, batch_size=batch_size, shuffle=True, num_workers=8)
 
-	# seen
-	# path_adv2 = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_{dataset}/scores_adv_FGSM_0.00392_5single_vector_norm{t}{isperb_image}10000/'
-	# deit-s
-	# path_adv2 = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_{dataset}_deits/scores_adv_FGSM_0.00392_5single_vector_norm{t}{isperb_image}5000/'
-	# wrn-70-16
-	# path_adv2 = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_{dataset}_wrn_70_16/scores_adv_FGSM_0.00392_5single_vector_norm{t}{isperb_image}10000/'
-	# imagenet128
-	path_adv2 = f"/mnt/cephfs/ec/home/zhangshuhai/DiffPure/score_diffusion_t_imagenet_128/scores_adv_FGSM_0.00784_5single_vector_norm50perb_image10000/"
-	adv_data2 = DatasetNPY(path_adv2)
-	adv_data_loader2 = DataLoader(adv_data2, batch_size=batch_size, shuffle=True, num_workers=8)
+path_adv = f'{args.detection_datapath}/scores_adv_FGSM_L2_0.00392_5single_vector_norm50perb_image10000/'
+adv_data1 = DatasetNPY(path_adv)
+adv_data_loader1 = DataLoader(adv_data1, batch_size=batch_size, shuffle=True, num_workers=8)
+
+path_adv2 = f'{args.detection_datapath}/scores_adv_FGSM_0.00392_5single_vector_norm50perb_image10000/'
+adv_data2 = DatasetNPY(path_adv2)
+adv_data_loader2 = DataLoader(adv_data2, batch_size=batch_size, shuffle=True, num_workers=8)
 
 if '128' in path:
 	img_size = 128
@@ -117,19 +98,7 @@ sigma0OPT = torch.from_numpy(np.ones(1) * np.sqrt(args.sigma0)).to(device, torch
 sigma0OPT.requires_grad = True
 
 sigma, sigma0_u, ep = None, None, None
-# if args.resume:
-# 	# Load checkpoint.
-# 	print('==> Resuming from checkpoint..')
-# 	assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
-# 	checkpoint = torch.load('./checkpoint/ckpt.pth')
-# 	net.load_state_dict(checkpoint['net'])
-# 	best_acc = checkpoint['acc']
-# 	start_epoch = checkpoint['epoch']
 
-
-# if device == 'cuda':
-# 	# net = torch.nn.DataParallel(net).cuda()
-# 	cudnn.benchmark = True
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(list(net.parameters())+ [epsilonOPT] + [sigmaOPT] + [sigma0OPT], lr=args.lr)
@@ -189,27 +158,9 @@ def train(epoch):
 		x_adv = torch.cat([x_adv1,x_adv2],dim=0)
 		assert inputs.shape[0]==x_adv.shape[0]
 
-	# for batch_idx, (inputs,x_adv) in enumerate(zip(ref_loader, adv_data_loader1)):
-	# 	assert inputs.shape[0]==x_adv.shape[0]
-	# 	inputs = inputs.cuda(non_blocking=True)
-	# 	x_adv = x_adv.cuda(non_blocking=True)
-	
-	# for batch_idx, (inputs) in enumerate(ref_loader1):
-	# 	inputs = inputs.cuda(non_blocking=True)
-	# 	ind = np.random.choice(n_x_adv-100, inputs.shape[0], replace=False)+100
-	# 	x_adv = torch.from_numpy(x_adv_train[ind]).cuda()
-		# inputs = mixup(inputs)
-		# x_adv = mixup(x_adv)
-
-		# inputs = Variable(inputs.type(Tensor))
-		# x_adv = Variable(x_adv.type(Tensor))
 
 		X = torch.cat([inputs, x_adv],dim=0)
-		# Y = torch.cat([torch.ones(inputs.shape[0]),torch.zeros(x_adv.shape[0])],dim=0).cuda()
 
-		# valid = Variable(Tensor(inputs.shape[0], 1).fill_(1.0), requires_grad=False)
-		# fake = Variable(Tensor(x_adv.shape[0], 1).fill_(0.0), requires_grad=False)
-		# Y = torch.cat([valid, fake], 0).squeeze().long()
 
 		optimizer.zero_grad()
 		_, outputs = net(X,out_feature=True)
@@ -230,16 +181,7 @@ def train(epoch):
 
 		# Update weights using gradient descent
 		optimizer.step()
-	
-		# print("net.parameters())[-1]", list(net.parameters())[-1])
-		# print("net.parameters())[-1]", net.feature.weight.data[:10, 0])
-		# print("net.parameters())[-1].grad", net.feature.weight.grad[:10, 0])
-	# 	train_loss += mmd_value_temp.item()
-	# 	_, predicted = outputs.max(1)
-	# 	total += outputs.size(0)
-	# 	correct += predicted.eq(Y).sum().item()
 
-	# print(epoch, 'Loss: %.6f | Acc: %.6f%% (%d/%d)'% (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
 	print(f"epoch:{epoch}, mmd_value_temp:{mmd_value_temp.item()}, STAT_u:{STAT_u.item()}, mmd_std:{mmd_std_temp}")
 	return sigma, sigma0_u, ep
 
@@ -247,13 +189,7 @@ def test(epoch, diffusion_t, dataset):
 	global best_acc
 	net.eval()
 	tt = diffusion_t
-	# test_loss = 0
-	# correct = 0
-	# total = 0
-	# value_factor = 15
-	# kernel_num = 30
-	# fix_sigma = None
-	#   'VMI_FGSM','FGSM', 'FGSM_L2','BIM','TIM','BIM_L2' ] #
+
 	# attack_methods=['PGD','FGSM', 'BIM', 'MIM', 'TIM', 'DI_MIM','CW', 'PGD_L2', 'FGSM_L2', 'BIM_L2', 'MM_Attack', 'AA_Attack', 'VMI_FGSM']
 	attack_methods=['FGSM_L2']#,'MIM', 'TIM', 'DI_MIM','BIM_L2', 'MM_Attack']
 	# attack_method = 'PGD'
@@ -262,53 +198,31 @@ def test(epoch, diffusion_t, dataset):
 	isperb_image = 'perb_image' if perb_image else ''
 	stand_flag = True
 	isstand = '_stand' if stand_flag else ''
-	# t = 50
 	for num_sub in [500]:
 		data_size = '' if num_sub==500 else str(num_sub)
 		for epsilon in [0.01569]: #0.00392, 0.00784, 0.01176, 0.01569, 0.01961, 0.02353, 0.02745, 0.03137]:
 			print('dataset:',dataset, 'epsilon:', epsilon)
 			for attack_method in attack_methods:
 				print(f"======attack_method: {attack_method}")
-				# for t in [tt]: #20, 50, 100, 150, 200]:
-				for t in [5, 10, 20, 50, 100]:
+				for t in [50]:
 					tile_name = f'scores_face_detect_clean_adv_{attack_method}_{epsilon}_5_{t}{isperb_image}'
-					if dataset == 'imagenet':
-						# seen attack
-						# path_cln = f'score_diffusion_t_{dataset}{isstand}/scores_cleansingle_vector_norm{t}{isperb_image}{data_size}.npy'
-						# path_adv = f'score_diffusion_t_{dataset}{isstand}/scores_adv_{attack_method}_{epsilon}_5single_vector_norm{t}{isperb_image}{data_size}.npy'
-						# deit-s
-						# path_cln = f'score_diffusion_t_deit-s/scores_cleansingle_vector_norm{t}{isperb_image}{data_size}.npy'
-						# path_adv = f'score_diffusion_t_deit-s/scores_adv_{attack_method}_{epsilon}_5single_vector_norm{t}{isperb_image}{data_size}.npy'
-						# transferable
-						# path_cln = f'score_diffusion_t_imagenet101/scores_cleansingle_vector_norm{t}{isperb_image}{data_size}.npy'
-						# path_adv = f'score_diffusion_t_imagenet101/scores_adv_{attack_method}_{epsilon}_5single_vector_norm{t}{isperb_image}{data_size}.npy'
-						# 128
-						path_cln = f'/mnt/cephfs/ec/home/zhangshuhai/DiffPure/score_diffusion_t_imagenet_128/score_diffusion_t_imagenet/scores_cleansingle_vector_norm{t}{isperb_image}{data_size}.npy'
-						path_adv = f'/mnt/cephfs/ec/home/zhangshuhai/DiffPure/score_diffusion_t_imagenet_128/score_diffusion_t_imagenet/scores_adv_{attack_method}_{epsilon}_5single_vector_norm{t}{isperb_image}{data_size}.npy'
-						
-					else:
-						# seen attack
-						# path_cln = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar/scores_clean200{isperb_image}{data_size}.npy'
-						# path_adv = f'score_diffusion_t_{dataset}_stand/scores_adv_{attack_method}_{epsilon}_5200{isperb_image}{data_size}.npy'
-						# wrn-70-16
-						path_cln = f'score_norm_{dataset}_wrn_70_16/scores_clean200{isperb_image}{data_size}.npy'
-						path_adv = f'score_norm_{dataset}_wrn_70_16/scores_adv_{attack_method}_{epsilon}_520{isperb_image}{data_size}.npy'
-					log_dir = f'score_diffusion_t_face_detect_{dataset}{isstand}/test/'
+
+					path_cln = f'./score_diffusion_t_{dataset}_stand/scores_cleansingle_vector_norm{t}{isperb_image}{data_size}.npy'
+					path_adv = f'./score_diffusion_t_{dataset}_stand/scores_adv_{attack_method}_{epsilon}_5single_vector_norm{t}{isperb_image}{data_size}.npy'
+					
+					log_dir = f'score_diffusion_detect_{dataset}{isstand}/test/'
 					os.makedirs(log_dir, exist_ok=True)
 					with torch.no_grad():
 						ref_list = []
 						for batch_idx, (inputs) in enumerate(ref_loader):
-							if batch_idx>2:
+							if batch_idx>3:
 								break
 							ref_list.append(inputs)
 						
-						ref_data = torch.cat(ref_list,dim=0).cuda()
+						ref_data = torch.cat(ref_list,dim=0).cuda()[:SIZE]
 						x_cln = torch.from_numpy(np.load(path_cln)).cuda()
 						x_adv = torch.from_numpy(np.load(path_adv)).cuda()
 						
-						if dataset == 'cifar':
-							x_cln = x_cln[:t,:,:,:,:].mean(0)#.half() 
-							x_adv = x_adv[:t,:,:,:,:].mean(0)#.half()
 						
 						time0 = time()
 						_,feature_ref = net(ref_data,out_feature=True)
@@ -318,15 +232,6 @@ def test(epoch, diffusion_t, dataset):
 
 						dt_clean = MMD_batch(torch.cat([feature_ref,feature_cln],dim=0), feature_ref.shape[0], torch.cat([ref_data,x_cln],dim=0).view(ref_data.shape[0]+x_cln.shape[0],-1), sigma, sigma0_u, ep).cpu()
 						dt_adv = MMD_batch(torch.cat([feature_ref,feature_adv],dim=0), feature_ref.shape[0], torch.cat([ref_data,x_adv],dim=0).view(ref_data.shape[0]+x_adv.shape[0],-1), sigma, sigma0_u, ep).cpu()
-						# dt_clean = x_cln.view(x_cln.shape[0],-1).norm(dim=-1).cpu()
-						# dt_adv = x_adv.view(x_adv.shape[0],-1).norm(dim=-1).cpu()
-						# print("Time:", time() - time0)
-						# L2_distance_xx = L2_distance_get(feature_ref,feature_ref, value_factor)
-						# L2_distance_yx_cln = L2_distance_get(feature_cln, feature_ref, value_factor)
-						# L2_distance_yx_adv = L2_distance_get(feature_adv, feature_ref, value_factor)
-
-						# dt_adv = mmd_guassian_bigtensor_batch(L2_distance_xx, L2_distance_yx_adv,value_factor,kernel_num,fix_sigma=fix_sigma).cpu()
-						# dt_clean = mmd_guassian_bigtensor_batch(L2_distance_xx, L2_distance_yx_cln,value_factor,kernel_num,fix_sigma=fix_sigma).cpu()
 						
 						print(plot_mi( dt_clean, dt_adv,log_dir, tile_name))
 

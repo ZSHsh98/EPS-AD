@@ -299,7 +299,7 @@ def parse_args_and_config():
 
 	# Detection
 	parser.add_argument('--clean_score_flag', action='store_true')
-	parser.add_argument('--detection_datapath', type=str, default='/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar')#./score_diffusion_t_cifar
+	parser.add_argument('--detection_datapath', type=str, default='./score_diffusion_t_cifar')#./score_diffusion_t_cifar
 	# parser.add_argument('--detection_flag', action='store_true')
 	# parser.add_argument('--detection_ensattack_flag', action='store_true')
 	parser.add_argument('--detection_ensattack_norm_flag', action='store_true')
@@ -327,7 +327,7 @@ def parse_args_and_config():
 	# additional attack settings
 	parser.add_argument('--num-steps', default=5, type=int,help='perturb number of steps')
 	parser.add_argument('--random', default=True,help='random initialization for PGD')
-	parser.add_argument('--attack_methods', type=str, nargs='+',default=['MM_Attack', 'AA_Attack', 'PGD','BIM_L2','FGSM', 'CW', 'BIM',  'MIM', 'TIM', 'DI_MIM','FGSM_L2',  'PGD_L2'])
+	parser.add_argument('--attack_methods', type=str, nargs='+',default=['FGSM', 'PGD', 'BIM',  'MIM', 'TIM', 'CW', 'DI_MIM','FGSM_L2', 'PGD_L2', 'BIM_L2','MM_Attack', 'AA_Attack'])
 	parser.add_argument('--mim_momentum', default=1., type=float,help='mim_momentum')
 	parser.add_argument('--epsilon', default=0.01568, type=float,help='perturbation')#0.01568, type=float,help='perturbation')
 
