@@ -27,7 +27,7 @@ deep_Mahalanobis_detector/
 drawline
 models
 Rectified-Rejection/
-VT-pytorch/
+VT-PyTorch/
 ablation_R
 baseline*
 bash_*
@@ -41,6 +41,6 @@ nonperturb1
 plot*
 run_*
 scalar_*
-train_D_*
+train_D*
 trendy_plot
 vector_*
