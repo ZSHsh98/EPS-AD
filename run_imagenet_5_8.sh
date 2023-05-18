@@ -4,13 +4,13 @@ export CC=gcc-7
 export CXX=g++-7
 export TORCH_CUDA_ARCH_LIST=8.0
 
-for t in 100 20 50; do
-  for adv_eps in 0.00392 0.00784 0.01176 0.01569; do
+for t in 1 2 5 10 100 20 50; do
+  for adv_eps in 0.01961 0.02353 0.02745 0.03137; do
 
-    export CUDA_VISIBLE_DEVICES=6 
+    export CUDA_VISIBLE_DEVICES=0 
     python eval_sde_adv.py --datapath '/mnt/cephfs/mixed/dataset/imagenet'\
         --num_sub 500\
-        --adv_batch_size 16\
+        --adv_batch_size 24\
         --detection_datapath './score_diffusion_t_imagenet_stand'\
         --config imagenet.yml\
         -i imagenet\

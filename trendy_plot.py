@@ -230,23 +230,26 @@ if dataset == 'imagenet':
 	# path_adv = f'score_diffusion_t_{dataset}/scores_adv_{attack_method}_0.01568_5single_vector_norm100{isperb_image}.npy'
 	log_dir = f'./score_diffusion_t_{dataset}/'
 elif dataset == 'cifar':
-	path = f'score_diffusion_t_cifar/scores_clean200{isperb_image}.npy'
-	path_adv = f'score_diffusion_t_{dataset}/scores_adv_{attack_method}_0.01568_5200{isperb_image}.npy'
-	log_dir = f'./score_diffusion_t_{dataset}/'
+	# path = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar/scores_clean200{isperb_image}.npy'
+	# path_adv = f'score_diffusion_t_cifar_stand/scores_adv_{attack_method}_0.03137_5200{isperb_image}.npy'
+	# log_dir = f'./score_diffusion_t_{dataset}/'
+	path = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar/scores_clean200{isperb_image}.npy'
+	path_adv = f'/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar100/scores_clean200{isperb_image}.npy'
+	log_dir = f'./score_diffusion_t_{dataset}_ood/'
 	
 os.makedirs(log_dir, exist_ok=True)
 x = torch.from_numpy(np.load(path))
 x_adv = torch.from_numpy(np.load(path_adv))
 
-if dataset == 'cifar':
-	x = x.view(*x.shape[:2], -1).norm(dim=-1)
-	x_adv = x_adv.view(*x_adv.shape[:2], -1).norm(dim=-1)
+# if dataset == 'cifar':
+# 	x = x.view(*x.shape[:2], -1).norm(dim=-1)
+# 	x_adv = x_adv.view(*x_adv.shape[:2], -1).norm(dim=-1)
 
 a = 0
-b = 10
-tile_name = f'scores_clean_adv_{attack_method}0.15_5_t_{a}-{b}_{isperb_image}'
+b = 100
+tile_name = f'mmd_clean_adv_{attack_method}0.15_5_t_{isperb_image}'
 # tile_name = f'scores_adv_{attack_method}0.3_5_t_0-{b}'
-diff_x_adv_x_sum = 0
+# diff_x_adv_x_sum = 0
 # for i in range(x_adv.shape[1]):
 # 	clean = x[a:b,i] 
 # 	adv = x_adv[a:b,i]
@@ -258,5 +261,34 @@ diff_x_adv_x_sum = 0
 # 	plt.savefig(f'{log_dir}/{tile_name}.jpg') # 
 # plt.close()
 
-for t in range(50):
-	print(sum(x[t,:]<x_adv[t,:]))
+# for t in range(50):
+# 	print(sum(x[t,:]<x_adv[t,:]))
+
+from cauculate_MMD import mmd_guassian_kernel_batch
+with torch.no_grad():
+	for sample_id in range(20):
+		mmd_cln_list = []
+		mmd_adv_list = []
+		for t in range(1,200+1):
+			## gradually computer statistic
+			clean_ref = x[:t].mean(dim=0)
+			adv = x_adv[:t,sample_id,:,:,:].mean(dim=0).view(1,*x_adv.shape[2:])
+			clean = x[:t,sample_id,:,:,:].mean(dim=0).view(1,*x.shape[2:])
+			## computer single statistic
+			# clean_ref = x[t]
+			# adv = x_adv[t,sample_id,:,:,:].view(1,*x_adv.shape[2:])
+			# clean = x[t,sample_id,:,:,:].view(1,*x.shape[2:])
+
+			mmd_cln = mmd_guassian_kernel_batch(clean_ref[100:].view(clean_ref[100:].shape[0],-1), clean.view(clean.shape[0],-1), kernel_num=10)
+			mmd_adv = mmd_guassian_kernel_batch(clean_ref[100:].view(clean_ref[100:].shape[0],-1), adv.view(adv.shape[0],-1), kernel_num=10)
+			# mmd_cln = clean.view(clean.shape[0],-1).norm(dim=-1)
+			# mmd_adv = adv.view(adv.shape[0],-1).norm(dim=-1)
+			mmd_cln_list.append(mmd_cln)
+			mmd_adv_list.append(mmd_adv)
+		plt.plot(mmd_cln_list, color='red')
+		plt.plot(mmd_adv_list, color='blue')
+		plt.title(f'scores_t_{a}-{b}')
+		plt.savefig(f'{log_dir}/{tile_name}.jpg') # 
+		mmd_cln_list.clear()
+		mmd_adv_list.clear()
+	plt.close()

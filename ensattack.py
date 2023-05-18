@@ -70,11 +70,13 @@ def mm_loss(output, target, target_choose, confidence=50, num_classes=10):
     loss = torch.sum(loss)
     return loss
 
+
 def ens_attack(input, target, model, mean, std, args, attack_method, attack_model=None):
 	def _grad(X, y, mean, std):
 		with torch.enable_grad():
 					X.requires_grad_()
 					outputs = attack_model(X.sub(mean).div(std))
+					# outputs, __ = model(X.sub(mean).div(std))[0:2]
 					outputs = outputs.softmax(-1)
 					if outputs.dim() == 3:
 						output = outputs.mean(-2) + 1e-10
@@ -92,6 +94,26 @@ def ens_attack(input, target, model, mean, std, args, attack_method, attack_mode
 						[loss], [X], grad_outputs=torch.ones_like(loss),
 						retain_graph=False)[0].detach()
 		return grad_
+
+	def input_diversity(args, input_tensor):
+		'''apply input transformation to enhance transferability: padding and resizing (DIM)'''
+		image_size = 224 if args.domain == 'imagenet' else 32
+		rnd = torch.randint(image_size, args.image_resize, ())   # uniform distribution
+		rescaled = F.interpolate(input_tensor, size=[rnd, rnd], mode='nearest')
+		h_rem = args.image_resize - rnd
+		w_rem = args.image_resize - rnd
+		pad_top = torch.randint(0, h_rem, ())
+		pad_bottom = h_rem - pad_top
+		pad_left = torch.randint(0, w_rem, ())
+		pad_right = w_rem - pad_left
+		# pad的参数顺序在pytorch里面是左右上下，在tensorflow里是上下左右，而且要注意pytorch的图像格式是BCHW, tensorflow是CHWB
+		padded = F.pad(rescaled, (pad_left, pad_right, pad_top, pad_bottom, 0, 0, 0, 0))
+		if torch.rand(1) < args.prob:
+			ret = padded
+		else:
+			ret = input_tensor
+		ret = F.interpolate(ret, [image_size, image_size], mode='nearest')
+		return ret
 
 	def _PGD_whitebox(X, y, mean, std):
 		X_pgd = X.clone()
@@ -243,6 +265,43 @@ def ens_attack(input, target, model, mean, std, args, attack_method, attack_mode
 			X_cw = torch.clamp(X + eta, 0, 1.0)
 		return X_cw
 
+	def _CW_L2_whitebox(X, y, mean, std):
+		bs = X.shape[0]
+		scale_ = np.sqrt(np.prod(list(X.shape[1:])))
+		lr = args.step_size_adv * scale_
+		radius = args.epsilon * scale_
+
+		X_cw = X.clone()
+		X_cw += torch.cuda.FloatTensor(*X_cw.shape).uniform_(-args.epsilon, args.epsilon)
+		y_one_hot = F.one_hot(y, num_classes=args.num_classes)
+		for _ in range(args.num_steps):
+			X_cw.requires_grad_()
+			if X_cw.grad is not None: del X_cw.grad
+			X_cw.grad = None
+			with torch.enable_grad():
+				outputs = attack_model(X_cw.sub(mean).div(std))
+				outputs = outputs.softmax(-1)
+				if outputs.dim() == 3:
+					logits = (outputs.mean(-2) + 1e-10).log()
+				else:
+					logits = outputs.log()
+				logit_target = torch.max(y_one_hot * logits, 1)[0]
+				logit_other = torch.max(
+					(1 - y_one_hot) * logits - 1e6 * y_one_hot, 1)[0]
+				loss = torch.mean(logit_other - logit_target)
+				# if args.mimicry != 0.:
+				# 	loss -= features.var(dim=1).mean() * args.mimicry
+				loss.backward()
+
+			grad_norm_ = torch.clamp(torch.norm(X_cw.grad.view(bs, -1), dim=1), min=1e-12).view(bs, 1, 1, 1)
+			grad_unit_ = X_cw.grad / grad_norm_
+			X_cw += lr * grad_unit_
+			eta = X_cw - X
+			eta_norm = torch.clamp(torch.norm(eta.view(bs, -1), dim=1), min=radius).view(bs, 1, 1, 1)
+			eta = eta * (radius / eta_norm)
+			X_cw = torch.clamp(X + eta, 0, 1.0)
+		return X_cw
+
 	def _DI_MIM_whitebox(X, y, mean, std):
 		def Resize_and_padding(x, scale_factor=1.1):
 			ori_size = x.size(-1)
@@ -281,10 +340,10 @@ def ens_attack(input, target, model, mean, std, args, attack_method, attack_mode
 			raise NotImplementedError(f'Unknown attack version: {attack_version}!')
 		adversary_resnet = AutoAttack(model, norm=args.lp_norm, eps=args.epsilon,
 								  version=attack_version, attacks_to_run=attack_list)
-		adversary_resnet.apgd.n_iter = args.diffuse_t
-		adversary_resnet.fab.n_iter = args.diffuse_t
-		adversary_resnet.square.n_iter = args.diffuse_t
-		adversary_resnet.apgd_targeted.n_iter = args.diffuse_t
+		adversary_resnet.apgd.n_iter = args.num_steps
+		adversary_resnet.fab.n_iter = args.num_steps
+		adversary_resnet.square.n_iter = args.num_steps
+		adversary_resnet.apgd_targeted.n_iter = args.num_steps
 		
 		x_adv = adversary_resnet.run_standard_evaluation(X, y, bs=X.shape[0])
 
@@ -296,7 +355,7 @@ def ens_attack(input, target, model, mean, std, args, attack_method, attack_mode
 		from MMattack.attack_apgd import APGDAttack, APGDAttack_targeted
 		# apgd = APGDAttack_targeted(model, n_restarts=1, n_iter=perturb_steps, verbose=False,
         #         eps=args.epsilon, norm='Linf', eot_iter=1, rho=.75, seed=1, device='cuda')
-		apgd = APGDAttack_targeted(model, n_restarts=1, n_iter=args.diffuse_t, verbose=False,
+		apgd = APGDAttack_targeted(model, n_restarts=1, n_iter=args.num_steps, verbose=False,
                 eps=args.epsilon, norm='Linf', eot_iter=1, rho=.75, seed=1, device='cuda')
 
 		with torch.no_grad():
@@ -339,6 +398,111 @@ def ens_attack(input, target, model, mean, std, args, attack_method, attack_mode
 
 		return x0
 
+	def _VMI_FGSM_whitebox(model, X, y):
+		model = model.cuda()
+
+		x = X * 2 - 1
+
+		num_iter = args.num_steps
+		eps = args.epsilon * 2.0
+		alpha = eps / num_iter
+		momentum = args.momentum
+		number = args.number
+		beta = args.beta
+		grads = torch.zeros_like(x,requires_grad=False)
+		variance = torch.zeros_like(x,requires_grad=False)
+		min_x = x - eps
+		max_x = x + eps
+
+		adv = x.clone()
+		
+		with torch.enable_grad():
+			for i in range(num_iter):
+				adv.requires_grad = True
+				outputs = model(adv)
+				loss = F.cross_entropy(outputs, y)
+				loss.backward()
+				new_grad = adv.grad
+				noise = momentum * grads + (new_grad + variance) / torch.norm(new_grad + variance, p=1)
+
+				# update variance
+				sample = adv.clone().detach()
+				global_grad = torch.zeros_like(x, requires_grad=False)
+				for _ in range(number):
+					sample = sample.detach()
+					sample.requires_grad = True
+					rd = (torch.rand_like(x) * 2 - 1) * beta * eps
+					sample = sample + rd
+					outputs_sample = model(sample)
+					loss_sample = F.cross_entropy(outputs_sample, y)
+					global_grad += torch.autograd.grad(loss_sample, sample, grad_outputs=None, only_inputs=True)[0]
+				variance = global_grad / (number * 1.0) - new_grad
+
+				adv = adv + alpha * noise.sign()
+				adv = torch.clamp(adv, -1.0, 1.0).detach()   # range [-1, 1]
+				adv = torch.max(torch.min(adv, max_x), min_x).detach()
+				grads = noise
+		
+		return (adv + 1) / 2
+	def _VMI_CT_FGSM_whitebox(model, X, y):
+		model = model.cuda()
+
+		x = X * 2 - 1
+
+		num_iter = args.num_steps
+		eps = args.epsilon * 2.0
+		alpha = eps / num_iter
+		momentum = args.momentum
+		number = args.number
+		beta = args.beta
+		grads = torch.zeros_like(x,requires_grad=False)
+		variance = torch.zeros_like(x,requires_grad=False)
+		min_x = x - eps
+		max_x = x + eps
+
+		adv = x.clone()
+		y_batch = torch.cat((y, y, y, y, y),dim=0)
+
+		with torch.enable_grad():
+			for i in range(num_iter):
+				adv.requires_grad = True
+				x_batch = torch.cat((adv, adv/2., adv/4., adv/8., adv/16.),dim=0)
+				outputs = model(input_diversity(args, x_batch))
+				loss = F.cross_entropy(outputs, y_batch)
+				grad_vanilla = torch.autograd.grad(loss, x_batch, grad_outputs=None, only_inputs=True)[0]
+				grad_batch_split = torch.split(grad_vanilla, split_size_or_sections=args.adv_batch_size, dim=0)
+				grad_in_batch = torch.stack(grad_batch_split, dim=4)
+				new_grad = torch.sum(grad_in_batch * torch.tensor([1., 1 / 2., 1 / 4., 1 / 8, 1 / 16.]).cuda(), dim=4, keepdim=False)
+				current_grad = new_grad + variance
+				noise = F.conv2d(input=current_grad, weight=stack_kernel, stride=1, padding=3, groups=3)
+				noise = momentum * grads + noise / torch.norm(noise, p=1)
+
+				# update variance
+				sample = x_batch.clone().detach()
+				global_grad = torch.zeros_like(x, requires_grad=False)
+				for _ in range(number):
+					sample = sample.detach()
+					sample.requires_grad = True
+					rd = (torch.rand_like(x) * 2 - 1) * beta * eps
+					rd_batch = torch.cat((rd, rd / 2., rd / 4., rd / 8., rd / 16.), dim=0)
+					sample = sample + rd_batch
+					outputs_sample = model(input_diversity(args, sample))
+					loss_sample = F.cross_entropy(outputs_sample, y_batch)
+					grad_vanilla_sample = torch.autograd.grad(loss_sample, sample, grad_outputs=None, only_inputs=True)[0]
+					grad_batch_split_sample = torch.split(grad_vanilla_sample, split_size_or_sections=args.adv_batch_size,
+														dim=0)
+					grad_in_batch_sample = torch.stack(grad_batch_split_sample, dim=4)
+					global_grad += torch.sum(grad_in_batch_sample * torch.tensor([1., 1 / 2., 1 / 4., 1 / 8, 1 / 16.]).cuda(), dim=4, keepdim=False)
+				variance = global_grad / (number * 1.0) - new_grad
+
+				adv = adv + alpha * noise.sign()
+				adv = torch.clamp(adv, -1.0, 1.0).detach()   # range [-1, 1]
+				adv = torch.max(torch.min(adv, max_x), min_x).detach()
+				grads = noise
+		
+		return (adv + 1) / 2
+
+
 
 	stack_kernel = gaussian_kernel().cuda()
 	is_transferred = True if (attack_model is not None and attack_model != model) else False
@@ -362,14 +526,15 @@ def ens_attack(input, target, model, mean, std, args, attack_method, attack_mode
 			input = input.cuda(non_blocking=True).mul_(std).add_(mean)
 			target = target.cuda(non_blocking=True)
 
-			if attack_method == 'MM_Attack':
+			if attack_method in ['MM_Attack','VMI_FGSM']:
 				X_adv = eval('_{}_whitebox'.format(attack_method))(model, input, target)
-			elif attack_method in ['AA_Attack','KD']:
+			elif attack_method in ['AA_Attack']:
 				X_adv = eval('_{}_whitebox'.format(attack_method))(model, input, target, args)
 			else:
 				X_adv = eval('_{}_whitebox'.format(attack_method))(input, target, mean, std)
 
 			outputs = model(X_adv.sub(mean).div(std))
+			# outputs, __ = model(X_adv.sub(mean).div(std))[0:2]
 			prec1, prec5 = accuracy(outputs, target, topk=(1, 5))
 
 			# losses += loss * target.size(0)

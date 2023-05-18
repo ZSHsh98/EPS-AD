@@ -22,7 +22,7 @@ from autoattack import AutoAttack
 from stadv_eot.attacks import StAdvAttack
 
 import utils
-from utils import str2bool, get_accuracy, get_image_classifier, load_data, load_detection_data
+from utils import str2bool, get_accuracy, get_image_classifier, load_data, load_detection_data,load_OOD_data
 
 from runners.diffpure_ddpm import Diffusion
 from runners.diffpure_guided import GuidedDiffusion
@@ -300,15 +300,11 @@ def detection_test_ensattack(args, config, model, loader):
 	score_adv_list = []
 	score_adv_lists = []
 	assert not (args.detection_ensattack_norm_flag==True and args.single_vector_norm_flag==True)
-	isnorm = '_norm' if args.detection_ensattack_norm_flag else ''
-	isperb_image = 'perb_image' if args.perb_image else ''
-	data_size = '' if args.num_sub==500 else str(args.num_sub)
 	for attack_method in attack_methods:
 		top1_counter = 0
 		top5_counter = 0
 		num_samples = 0
 		start_time = time.time()
-		j = -1
 		for i, (x, y) in enumerate(loader):
 			x = x.to(config.device)
 			y = y.to(config.device)
@@ -352,58 +348,32 @@ def detection_test_ensattack(args, config, model, loader):
 						score_sum += score.detach()
 					else:
 						score_adv_list.append(score.detach())
-			
-				### 1w samples
-				# if args.clean_score_flag:
-				# if True:
-				if False:
-					if args.detection_ensattack_norm_flag:
-						exit(0)
-					elif args.single_vector_norm_flag:
-						if not args.clean_score_flag:
-							path_1w = f'{args.detection_datapath}/scores_adv_{attack_method}_{args.epsilon}_{args.num_steps}single_vector_norm{value}{isperb_image}{data_size}'
-						else:
-							path_1w = f'{args.detection_datapath}/scores_clean{isnorm}single_vector_norm{value}{isperb_image}{data_size}'
-						os.makedirs(path_1w, exist_ok=True)
-						for n in range(score_sum.size(0)):
-							np.save(path_1w +"/{}.npy".format(j+n+1), ((score_sum[n])/value).cpu().numpy())
-					else:
-						exit(0)
-						# score_adv_lists.append(torch.cat(score_adv_list, dim=0).view(len(score_adv_list),*x_adv.shape).cpu())
-					j += (n+1)
-				
-				### 500 samples
-				# elif not args.clean_score_flag:
-				if args.detection_ensattack_norm_flag:
-					score_adv_lists.append(torch.cat(score_adv_list, dim=0))
-				elif args.single_vector_norm_flag:
-					score_adv_lists.append(score_sum/value)
-				else:
-					score_adv_lists.append(torch.cat(score_adv_list, dim=0).view(len(score_adv_list),*x_adv.shape).cpu())
-				score_adv_list.clear()
-		
-		# if not args.clean_score_flag:
-		# if False:
-		if True:
-			print(f'attack_method: {attack_method}, robust accuracy: top1:{top1_counter/num_samples}--top5:{top5_counter/num_samples}')
-			print(f'attack and diffuison time: {time.time() - start_time}')
-			score_tensor = torch.cat(score_adv_lists, dim=1) if not args.single_vector_norm_flag else torch.cat(score_adv_lists, dim=0)
-			print(f"score_tensor.shape:{score_tensor.shape}")
-			isnorm = '_norm' if args.detection_ensattack_norm_flag else ''
-			isperb_image = 'perb_image' if args.perb_image else ''
-			data_size = '' if args.num_sub==500 else str(args.num_sub)
-			if not args.clean_score_flag:
-				if not args.single_vector_norm_flag:
-					np.save(f'{args.detection_datapath}/scores_adv_{attack_method}_{args.epsilon}_{args.num_steps}{isnorm}{value}{isperb_image}{data_size}.npy', score_tensor.data.cpu().numpy())
-				else:
-					np.save(f'{args.detection_datapath}/scores_adv_{attack_method}_{args.epsilon}_{args.num_steps}single_vector_norm{value}{isperb_image}{data_size}.npy', score_tensor.data.cpu().numpy())
-			
+			if args.detection_ensattack_norm_flag:
+				score_adv_lists.append(torch.cat(score_adv_list, dim=0))
+			elif args.single_vector_norm_flag:
+				score_adv_lists.append(score_sum/value)
 			else:
-				if not args.single_vector_norm_flag:
-					np.save(f'{args.detection_datapath}/scores_clean{isnorm}{value}{isperb_image}{data_size}.npy', score_tensor.data.cpu().numpy())
-				else:
-					np.save(f'{args.detection_datapath}/scores_clean{isnorm}single_vector_norm{value}{isperb_image}{data_size}.npy', score_tensor.data.cpu().numpy())
-			score_adv_lists.clear()
+				score_adv_lists.append(torch.cat(score_adv_list, dim=0).view(len(score_adv_list),*x_adv.shape).cpu())
+			score_adv_list.clear()
+		print(f'attack_method: {attack_method}, robust accuracy: top1:{top1_counter/num_samples}--top5:{top5_counter/num_samples}')
+		print(f'attack and diffuison time: {time.time() - start_time}')
+		score_tensor = torch.cat(score_adv_lists, dim=1) if not args.single_vector_norm_flag else torch.cat(score_adv_lists, dim=0)
+		print(f"score_tensor.shape:{score_tensor.shape}")
+		isnorm = '_norm' if args.detection_ensattack_norm_flag else ''
+		isperb_image = 'perb_image' if args.perb_image else ''
+		data_size = '' if args.num_sub==500 else str(args.num_sub)
+		if not args.clean_score_flag:
+			if not args.single_vector_norm_flag:
+				np.save(f'{args.detection_datapath}/scores_adv_{attack_method}_{args.epsilon}_{args.num_steps}{isnorm}{value}{isperb_image}{data_size}.npy', score_tensor.data.cpu().numpy())
+			else:
+				np.save(f'{args.detection_datapath}/scores_adv_{attack_method}_{args.epsilon}_{args.num_steps}single_vector_norm{value}{isperb_image}{data_size}.npy', score_tensor.data.cpu().numpy())
+		
+		else:
+			if not args.single_vector_norm_flag:
+				np.save(f'{args.detection_datapath}/scores_clean{isnorm}{value}{isperb_image}{data_size}.npy', score_tensor.data.cpu().numpy())
+			else:
+				np.save(f'{args.detection_datapath}/scores_clean{isnorm}single_vector_norm{value}{isperb_image}{data_size}.npy', score_tensor.data.cpu().numpy())
+		score_adv_lists.clear()
 
 def eval_stadv(args, config, model, x_val, y_val, adv_batch_size, log_dir):
 	ngpus = torch.cuda.device_count()
@@ -483,7 +453,7 @@ def robustness_eval(args, config):
 	if not args.detection_flag:
 		x_val, y_val = load_data(args, adv_batch_size)
 	else:
-		loader = load_detection_data(args, adv_batch_size)
+		loader = load_OOD_data(args, adv_batch_size)
 
 
 	if not args.detection_flag:
@@ -562,13 +532,6 @@ def parse_args_and_config():
 	parser.add_argument('--adv_eps', type=float, default=0.031373, help='0.031373')
 	parser.add_argument('--gpu_ids', type=str, default='3,4')
 
-	# vmi-fgsm
-	parser.add_argument('--momentum', default=1.0, type=float, help='momentum of the attack')
-	parser.add_argument('--number', default=20, type=int, help='the number of images for variance tuning')
-	parser.add_argument('--beta', default=1.5, type=float, help='the bound for variance tuning')
-	parser.add_argument('--prob', default=0.5, type=float, help='probability of using diverse inputs')
-	parser.add_argument('--image_resize', default=331, type=int, help='heigth of each input image')
-
 	args = parser.parse_args()
 	args.step_size_adv = args.epsilon / args.num_steps
 
@@ -643,15 +606,13 @@ if __name__ == '__main__':
 # --diffuse_t 50 --attack_methods FGSM PGD FGSM_L2 --perb_image
 # --clean_score_flag
 
-# 1w
-# CUDA_VISIBLE_DEVICES=6 python eval_sde_adv.py --datapath '/mnt/cephfs/mixed/dataset/imagenet' --num_sub 10000  --adv_batch_size 28 --detection_datapath '/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_imagenet'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag \
-# --config imagenet.yml -i imagenet --domain imagenet --classifier_name imagenet-resnet50 --diffuse_t 50  --perb_image
-# --clean_score_flag
-# CUDA_VISIBLE_DEVICES=2 python eval_sde_adv.py --datapath '/mnt/cephfs/mixed/dataset/imagenet' --num_sub 10000  --adv_batch_size 28 --detection_datapath '/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_imagenet'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag \
-# --config imagenet.yml -i imagenet --domain imagenet --classifier_name imagenet-resnet50 --diffuse_t 50  --perb_image
-# --attack_methods  FGSM_L2 --epsilon 0.00392
+# cifar102cifar100
+# CUDA_VISIBLE_DEVICES=7 python eval_sde_OOD.py  --num_sub 500  --adv_batch_size 250 --detection_datapath '/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar100'  --detection_flag --detection_ensattack_flag  \
+#  --diffuse_t 200 --epsilon 0.00784 --datapath "/mnt/cephfs/dataset/cifar100/"
+# --domain cifar10  --perb_image  --clean_score_flag
 
-# CUDA_VISIBLE_DEVICES=4 python eval_sde_adv.py  --num_sub 10000  --adv_batch_size 400 --detection_datapath '/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag \
-#  --diffuse_t 20  --perb_image --clean_score_flag
-# CUDA_VISIBLE_DEVICES=7 python eval_sde_adv.py  --num_sub 10000  --adv_batch_size 400 --detection_datapath '/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_cifar'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag \
-#  --diffuse_t 20  --perb_image --attack_methods  FGSM_L2 --epsilon 0.00392
+# imagenet2coco
+# CUDA_VISIBLE_DEVICES=7 python eval_sde_OOD.py  --num_sub 500  --adv_batch_size 32 --detection_datapath '/mnt/cephfs/ec/home/zhangshuhai/score_diffusion_t_coco'  --detection_flag --detection_ensattack_flag --single_vector_norm_flag\
+#  --diffuse_t 50 --epsilon 0.00784 --datapath "/mnt/cephfs/dataset/coco2014/images/"
+# --config imagenet.yml -i imagenet --domain imagenet  --classifier_name imagenet-resnet50 \
+# --perb_image  --clean_score_flag
