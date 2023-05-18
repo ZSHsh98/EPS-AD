@@ -27,7 +27,7 @@ deep_Mahalanobis_detector/
 drawline
 models
 Rectified-Rejection/
-VT-pytorch/
+VT-pytorch/git
 ablation_R
 baseline*
 bash_*
@@ -44,3 +44,4 @@ scalar_*
 trian_D_*
 trendy_plot
 vector_*
+MMattack
