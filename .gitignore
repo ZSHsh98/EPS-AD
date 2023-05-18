@@ -12,7 +12,7 @@ pretrained
 *.pth
 STDEVS*
 score_*
-KD-BU
+KD-BU_2/
 ImageNet_md_mean_var
 deep_Mahalanobis_detector
 cifar_70*
@@ -27,7 +27,7 @@ deep_Mahalanobis_detector/
 drawline
 models
 Rectified-Rejection/
-VT-pytorch
+VT-pytorch_2/
 ablation_R
 baseline*
 bash_*
