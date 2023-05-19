@@ -3,7 +3,9 @@ __pycache__
 *.pyc
 run.sh
 exp_results
-data*
+# data*
+dataset
+CIFAR10
 image*
 score_diff*
 pretrained
