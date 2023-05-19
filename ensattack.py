@@ -330,19 +330,10 @@ def ens_attack(input, target, model, mean, std, args, attack_method, attack_mode
 		from autoattack import AutoAttack
 
 		attack_version = args.attack_version  # ['standard', 'rand', 'custom']
-		if attack_version == 'standard':
-			attack_list = ['apgd-ce', 'apgd-t', 'fab-t', 'square']
-		elif attack_version == 'rand':
-			attack_list = ['apgd-ce', 'apgd-dlr']
-		elif attack_version == 'custom':
-			attack_list = args.attack_type.split(',')
-		else:
-			raise NotImplementedError(f'Unknown attack version: {attack_version}!')
 		adversary_resnet = AutoAttack(model, norm=args.lp_norm, eps=args.epsilon,
-								  version=attack_version, attacks_to_run=attack_list)
+								  version=attack_version)
 		adversary_resnet.apgd.n_iter = args.num_steps
 		adversary_resnet.fab.n_iter = args.num_steps
-		adversary_resnet.square.n_iter = args.num_steps
 		adversary_resnet.apgd_targeted.n_iter = args.num_steps
 		
 		x_adv = adversary_resnet.run_standard_evaluation(X, y, bs=X.shape[0])

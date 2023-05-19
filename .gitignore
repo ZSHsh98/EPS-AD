@@ -13,7 +13,9 @@ pretrained
 *.pkl
 *.pth
 STDEVS*
-score_*
+score_n*
+score_c*
+score_i*
 KD-BU/
 ImageNet_md_mean_var
 deep_Mahalanobis_detector
@@ -33,7 +35,7 @@ VT-PyTorch/
 ablation_R
 baseline*
 bash_*
-eval_sde_adv_*
+eval_sde_adv*
 eval_sde_EPS_*
 eval_sde_OOD*
 eval_sde_adv
