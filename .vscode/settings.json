@@ -1,7 +1,0 @@
-{
-    "jupyter.themeMatplotlibPlots": true,
-    "python.analysis.extraPaths": [
-        "./MM-attack",
-        "./KD-BU/scripts"
-    ]
-}
