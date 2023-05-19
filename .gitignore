@@ -50,3 +50,5 @@ vector_*
 cifar_norm_baseline*
 bpda_eot*
 .vscode*
+stadv_eot*
+run_scripts*
