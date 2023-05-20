@@ -138,6 +138,7 @@ python eval_epsad.py --datapath './dataset/imagenet' \
     --perb_image \
     --attack_methods FGSM FGSM_L2 \
     --epsilon 0.00392 \
+    --generate_1w_flag \
     --clean_score_flag
 ```
 
@@ -155,7 +156,8 @@ python eval_epsad.py --datapath './dataset/imagenet' \
     --diffuse_t 50  \
     --perb_image \
     --attack_methods FGSM FGSM_L2 \
-    --epsilon 0.00392
+    --epsilon 0.00392 \
+    --generate_1w_flag
 ```
 
 - To train a deep kernel MMD with the EPSs of FGSM and FGSM_L2 adversarial samples:
