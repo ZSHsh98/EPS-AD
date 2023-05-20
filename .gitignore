@@ -6,7 +6,8 @@ exp_results
 # data*
 dataset
 CIFAR10
-image*
+image
+images_other_setting
 score_diff*
 pretrained
 *.pt
