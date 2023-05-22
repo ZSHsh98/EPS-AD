@@ -36,6 +36,13 @@ For the pre-trained diffusion models, you need to first download them from the f
   ImageNet: (`256x256 diffusion unconditional`: [download link](https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt))
 
 
+## Environment of EPS-AD
+You have to create a virtual environment and set up libraries needed for training and evaluation.
+```
+conda env create -f epsad.yaml
+pip install git+https://github.com/RobustBench/robustbench.git
+```
+
 ## Run experiments on CIFAR-10
 
 **1. Train a deep kernel for MMD.**
@@ -74,7 +81,7 @@ python eval_epsad.py  --num_sub 10000 \
 - To train a deep kernel MMD with the EPSs of FGSM and FGSM_L2 adversarial samples:
 ```
 CUDA_VISIBLE_DEVICES=0
-python train_D.py --epochs 200 --lr 0.00002 --id 8 --sigma0 15 --sigma 100  --epsilon 2 --feature_dim 300 --dataset cifar
+python train_D.py --epochs 200 --lr 0.002 --id 8 --sigma0 15 --sigma 100  --epsilon 2 --feature_dim 300 --dataset cifar
 ```
 
 Note that through all our experiments, we use only FGSM and FGSM-$\ell_{2}$ adversarial samples ($\epsilon=1/255$), $10,000$ each, along with $10,000$ nature samples to calculate their EPSs to train the deep kernel, which can also be trained on a general public dataset. Moreover, our method is suitable for detecting all the $\ell_2$ and $\ell_\infty$ adversarial samples.
@@ -111,7 +118,7 @@ python eval_epsad.py --detection_datapath './score_diffusion_t_cifar_stand' \
 - To calculte the MMD between EPS of each test sample and EPSs of natural samples and obatin a AUROC:
 ```
 CUDA_VISIBLE_DEVICES=0
-python train_D.py --epochs 200 --lr 0.00002 --id 8 --sigma0 15 --sigma 100  --epsilon 2 --feature_dim 300 --dataset cifar --test_flag
+python train_D.py --epochs 200 --lr 0.00002 --id 8 --sigma0 15 --sigma 100  --epsilon 2 --feature_dim 300 --dataset cifar --test_flag True
 ```
 
 
@@ -206,7 +213,7 @@ python eval_epsad.py --datapath './dataset/imagenet' \
 - To calculte the MMD between EPS of each test sample and EPSs of natural samples and obatin a AUROC:
 ```
 CUDA_VISIBLE_DEVICES=0
-python train_D.py --epochs 200 --lr 0.002 --id 6 --sigma0 0.5 --sigma 100  --epsilon 10 --feature_dim 300 --dataset imagenet --test_flag
+python train_D.py --epochs 200 --lr 0.002 --id 6 --sigma0 0.5 --sigma 100  --epsilon 10 --feature_dim 300 --dataset imagenet --test_flag True
 ```
 
 ## Citation

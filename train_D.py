@@ -36,7 +36,7 @@ parser.add_argument('--sigma0', default=0.5, type=float, help="0.5 for imagenet"
 parser.add_argument('--sigma', default=100, type=float, help="100 for imagenet")
 parser.add_argument('--isfull',  action='store_false',)
 parser.add_argument('--test_flag',  type=bool,default=False)
-parser.add_argument('--detection_datapath', type=str, default='./score_diffusion_t_cifar_1w')
+# parser.add_argument('--detection_datapath', type=str, default='./score_diffusion_t_cifar_1w')
 parser.add_argument('--resume', '-r', action='store_true',
 					help='resume from checkpoint')
 args = parser.parse_args()
@@ -66,6 +66,8 @@ stand_flag = True
 isstand = '_stand' if stand_flag else ''
 data_size = ''
 t = 50 if dataset == 'imagenet' else 20
+args.detection_datapath = f'./score_diffusion_t_{dataset}_1w'
+
 print('==> Preparing data..')
 
 path = f'{args.detection_datapath}/scores_cleansingle_vector_norm50perb_image10000/'
@@ -236,8 +238,7 @@ def test(epoch, diffusion_t, dataset):
 						print(plot_mi( dt_clean, dt_adv,log_dir, tile_name))
 
 	if not args.test_flag:
-		# model_path = f'./net_D/resnet101/{id}' 
-		model_path = f'./net_D/imagenet128/{id}' 
+		model_path = f'./net_D/{args.dataset}/{id}' 
 		state = {
 				'net': net.state_dict(),
 				'epsilonOPT': epsilonOPT,
@@ -264,8 +265,7 @@ if not args.test_flag:
 else:
 	epoch = 99
 	print('==> testing from checkpoint..')
-	# model_path = f'./net_D/resnet101/{id}' 
-	model_path = f'./net_D/imagenet128/{id}'
+	model_path = f'./net_D/{args.dataset}/{id}'
 	assert os.path.isdir(model_path), 'Error: no checkpoint directory found!'
 	# checkpoint = torch.load(model_path + '/'+ str(epoch) +'last_ckpt.pth')
 	checkpoint = torch.load(model_path + '/'+ 'last_ckpt.pth')
