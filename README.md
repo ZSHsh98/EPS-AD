@@ -57,7 +57,7 @@ python eval_epsad.py  --num_sub 10000 \
     --adv_batch_size 200 \
     --detection_datapath './score_diffusion_t_cifar_1w'  \
     --epsilon 0.00392 \
-    --diffuse_t 50  \
+    --diffuse_t 20  \
     --perb_image \
     --attack_methods FGSM FGSM_L2 \
     --single_vector_norm_flag \
@@ -71,7 +71,7 @@ python eval_epsad.py  --num_sub 10000 \
     --adv_batch_size 200 \
     --detection_datapath './score_diffusion_t_cifar_1w'  \
     --epsilon 0.00392 \
-    --diffuse_t 50  \
+    --diffuse_t 20  \
     --perb_image \
     --attack_methods FGSM FGSM_L2 \
     --single_vector_norm_flag \
@@ -97,7 +97,7 @@ python eval_epsad.py --detection_datapath './score_diffusion_t_cifar_stand' \
     --num_sub 500 \
     --adv_batch_size 500 \
     --epsilon 0.01569 \
-    --diffuse_t 50 \
+    --diffuse_t 20 \
     --single_vector_norm_flag \
     --perb_image 
 ```
@@ -109,7 +109,7 @@ python eval_epsad.py --detection_datapath './score_diffusion_t_cifar_stand' \
     --num_sub 500 \
     --adv_batch_size 500 \
     --epsilon 0.01569 \
-    --diffuse_t 50 \
+    --diffuse_t 20 \
     --single_vector_norm_flag \
     --perb_image \
     --clean_score_flag
@@ -118,7 +118,7 @@ python eval_epsad.py --detection_datapath './score_diffusion_t_cifar_stand' \
 - To calculte the MMD between EPS of each test sample and EPSs of natural samples and obatin a AUROC:
 ```
 CUDA_VISIBLE_DEVICES=0
-python train_D.py --epochs 200 --lr 0.00002 --id 8 --sigma0 15 --sigma 100  --epsilon 2 --feature_dim 300 --dataset cifar --test_flag True
+python train_D.py --epochs 200 --lr 0.002 --id 8 --sigma0 15 --sigma 100  --epsilon 2 --feature_dim 300 --dataset cifar --test_flag True
 ```
 
 
