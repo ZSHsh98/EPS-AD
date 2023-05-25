@@ -21,14 +21,9 @@ Abstract: *Adversarial detection aims to determine whether a given sample is an 
 
 ## Data and pre-trained models
 
-Before running our code on ImageNet, you have to first download ImageNet. Note that
-we use the LMDB format for ImageNet, so you may need
-to [convert the ImageNet dataset to LMDB](https://github.com/Lyken17/Efficient-PyTorch/tree/master/tools). There is no
-need to download CIFAR-10 separately.
-
 Note that you have to put the datasets in the `./dataset` directory.
 
-For the pre-trained diffusion models, you need to first download them from the following links:
+For the pre-trained diffusion models, you need to first download them from the following links and put them in the `./pretrained` directory:
 
 - [Score SDE](https://github.com/yang-song/score_sde_pytorch) for
   CIFAR-10: (`vp/cifar10_ddpmpp_deep_continuous`: [download link](https://drive.google.com/file/d/16_-Ahc6ImZV5ClUc0vM5Iivf8OJ1VSif/view?usp=sharing))

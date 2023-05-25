@@ -300,27 +300,17 @@ def load_detection_data(args, adv_batch_size, generate_1w_flag=False):
 	if 'imagenet' in args.domain:
 		data_dir = args.datapath 
 		transform = data.get_transform(args.domain, 'imval', base_size=224)
-		if generate_1w_flag == True:
-			val_data = data.imagent_dataset_sub(data_dir, transform=transform,
-												num_sub=args.num_sub, data_seed=args.data_seed, train=True)
-		else:
-			val_data = data.imagent_dataset_sub(data_dir, transform=transform,
-												num_sub=args.num_sub, data_seed=args.data_seed)
+		val_data = data.imagent_dataset_sub(data_dir, transform=transform,
+											num_sub=args.num_sub, data_seed=args.data_seed, train=generate_1w_flag)
 		loader = DataLoader(val_data, batch_size=adv_batch_size, shuffle=False, pin_memory=True, num_workers=4)
 		x_val, y_val = next(iter(loader))
 	elif 'cifar10' in args.domain:
 		data_dir = args.datapath
 		transform = transforms.Compose([transforms.ToTensor()])
-		if generate_1w_flag == True:
-			val_data = data.cifar10_dataset_sub(data_dir, transform=transform,
-												num_sub=args.num_sub, data_seed=args.data_seed, train=True)
-		else:
-			val_data = data.cifar10_dataset_sub(data_dir, transform=transform,
-												num_sub=args.num_sub, data_seed=args.data_seed)
+		val_data = data.cifar10_dataset_sub(data_dir, transform=transform,
+											num_sub=args.num_sub, data_seed=args.data_seed, train=generate_1w_flag)
 		loader = DataLoader(val_data, batch_size=adv_batch_size, shuffle=False, pin_memory=True, num_workers=4)
 		x_val, y_val = next(iter(loader))
-	elif 'celebahq' in args.domain:
-		raise NotImplementedError(f'Unknown domain: {args.domain}!')
 	else:
 		raise NotImplementedError(f'Unknown domain: {args.domain}!')
 
@@ -366,7 +356,6 @@ def load_detection_train_test(args, adv_batch_size):
 def load_OOD_data(args, adv_batch_size):
 	if 'imagenet' in args.domain:
 		data_dir = args.datapath 
-		# data_dir = '/mnt/cephfs/home/zhangshuhai/DiffPure/picture_diffusion_visual'
 		transform = data.get_transform(args.domain, 'imval', base_size=224)
 		val_data = data.imagent_dataset_sub(data_dir, transform=transform,
 											num_sub=args.num_sub, data_seed=args.data_seed)
