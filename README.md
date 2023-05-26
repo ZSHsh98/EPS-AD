@@ -6,8 +6,8 @@
 
 Official PyTorch implementation of the ICML 2023 paper:
 
-**Detecting Adversarial Data by Probing Multiple Perturbations Using Expected Perturbation Score**
-<!-- **[Detecting Adversarial Data by Probing Multiple Perturbations Using Expected Perturbation Score](https://arxiv.org/abs/2205.07460)** -->
+<!-- **Detecting Adversarial Data by Probing Multiple Perturbations Using Expected Perturbation Score** -->
+**[Detecting Adversarial Data by Probing Multiple Perturbations Using Expected Perturbation Score](https://arxiv.org/abs/2305.16035)**
 
 Shuhai Zhang, Feng Liu, Jiahao Yang, Yifan Yang, Changsheng Li, Bo Han, Mingkui Tan
 
