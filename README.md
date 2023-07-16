@@ -217,7 +217,7 @@ python train_D.py --epochs 200 --lr 0.002 --id 6 --sigma0 0.5 --sigma 100  --eps
 ```
 @inproceedings{zhangs2023EPSAD,
   title={Detecting Adversarial Data by Probing Multiple Perturbations Using Expected Perturbation Score},
-  author={Shuhai Zhang, Feng Liu, Jiahao Yang, Yifan Yang, Changsheng Li, Bo Han, Mingkui Tan},
+  author={Zhang, Shuhai and Liu, Feng and Yang, Jiahao and Yang, Yifan and Li, Changsheng and Han, Bo and Tan, Mingkui},
   booktitle = {International Conference on Machine Learning (ICML)},
   year={2023}
 }
