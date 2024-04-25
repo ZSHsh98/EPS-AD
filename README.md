@@ -30,7 +30,7 @@ For the pre-trained diffusion models, you need to first download them from the f
 - [Guided Diffusion](https://github.com/openai/guided-diffusion) for
   ImageNet: (`256x256 diffusion unconditional`: [download link](https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt))
 
-For the checkpoint of the traiend kernels on Cifar and ImageNet:
+For the checkpoint of the trained kernels on Cifar and ImageNet:
 
 - [Cifar](https://drive.google.com/drive/folders/1doMYCEaTl3R20vDJmp59disepeTG7nb-?usp=drive_link)
 - [ImageNet](https://drive.google.com/drive/folders/1hAYYgRQsIpc9yQK8TTPde8_49Va8_fz-?usp=drive_link)
