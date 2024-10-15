@@ -89,7 +89,7 @@ Note that "--datapath" is the path of Imagenet dataset, if you have your own dat
 
 **1. Train a deep kernel for MMD.**
 
-- To obtain the EPSs of nature samples and adversarial samples under FGSM and FGSM_L2 attack with $\epsilon=1/255$ :
+- To obtain the EPSs of nature and adversarial samples under FGSM and FGSM_L2 attack with $\epsilon=1/255$ :
 
 <!-- # generate nature samples -->
 ```
