@@ -35,12 +35,55 @@ For the checkpoint of the trained kernels on Cifar and ImageNet:
 - [Cifar](https://drive.google.com/drive/folders/1doMYCEaTl3R20vDJmp59disepeTG7nb-?usp=drive_link)
 - [ImageNet](https://drive.google.com/drive/folders/1hAYYgRQsIpc9yQK8TTPde8_49Va8_fz-?usp=drive_link)
 
+You need to put the kernel on Cifar in the `net_D/cifar/8` directory and the kernel on ImageNet in the `net_D/imagenet/6` directory.
+
 ## Environment of EPS-AD
 You have to create a virtual environment and set up libraries needed for training and evaluation.
 ```
 conda env create -f epsad.yaml
 pip install git+https://github.com/RobustBench/robustbench.git
 ```
+
+## Quick start
+You can use your preferred image folders to run the following commands. Before running the commands, you need to download the pre-trained diffusion models and kernels, and put them in the obove corresponding directory.
+
+**1. Detecting the clean samples on CIFAR-10.**
+```
+python test_demo.py \
+  --id 8 \
+  --num_sub 500 \
+  --adv_batch_size 500 \
+  --detection_datapath '.\' \
+  --diffuse_t 20 \
+  --perb_image \
+  --epsilon 0.00392 \
+  --domain cifar10 \
+  --dataset cifar \
+  --loader None \
+  --clean_score_flag
+```
+Note that You can specify your preferred loader using "--loader". You can also use "--attack_methods FGSM_L2" to specify the attack methods, such as FGSM, PGD, and remove the flag "--clean_score_flag" to detect the adversarial samples.
+
+
+**2. Detecting the samples on ImageNet.**
+
+```
+python test_demo.py \
+  --id 6 \
+  --datapath './dataset/imagenet' \
+  --classifier_name imagenet-resnet50 \
+  --config imagenet.yml \
+  --num_sub 500 \
+  --adv_batch_size 32 \
+  --detection_datapath './' \
+  --diffuse_t 50 \
+  --perb_image \
+  --epsilon 0.00392 \
+  --domain imagenet \
+  --dataset imagenet \
+  --clean_score_flag
+```
+Note that "--datapath" is the path of Imagenet dataset, if you have your own data loader customized in "--loader", you can ignore the term "--datapath".
 
 ## Run experiments on CIFAR-10
 

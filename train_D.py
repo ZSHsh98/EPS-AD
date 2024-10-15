@@ -36,7 +36,7 @@ parser.add_argument('--sigma0', default=0.5, type=float, help="0.5 for imagenet"
 parser.add_argument('--sigma', default=100, type=float, help="100 for imagenet")
 parser.add_argument('--isfull',  action='store_false',)
 parser.add_argument('--test_flag',  type=bool,default=False)
-# parser.add_argument('--detection_datapath', type=str, default='./score_diffusion_t_cifar_1w')
+parser.add_argument('--detection_datapath', type=str, default='./')
 parser.add_argument('--resume', '-r', action='store_true',
 					help='resume from checkpoint')
 args = parser.parse_args()
@@ -66,21 +66,22 @@ stand_flag = True
 isstand = '_stand' if stand_flag else ''
 data_size = ''
 t = 50 if dataset == 'imagenet' else 20
-args.detection_datapath = f'./score_diffusion_t_{dataset}_1w'
+datapath = f'{args.detection_datapath}/score_diffusion_t_{dataset}_1w'
 
 print('==> Preparing data..')
 
-path = f'{args.detection_datapath}/scores_cleansingle_vector_norm50perb_image10000/'
+path = f'{datapath}/scores_cleansingle_vector_norm{t}perb_image10000/'
 ref_data = DatasetNPY(path)
 ref_loader = DataLoader(ref_data, batch_size=batch_size, shuffle=True, num_workers=8)
 
-path_adv = f'{args.detection_datapath}/scores_adv_FGSM_L2_0.00392_5single_vector_norm50perb_image10000/'
-adv_data1 = DatasetNPY(path_adv)
-adv_data_loader1 = DataLoader(adv_data1, batch_size=batch_size, shuffle=True, num_workers=8)
+if not args.test_flag:
+	path_adv = f'{datapath}/scores_adv_FGSM_L2_0.00392_5single_vector_norm{t}perb_image10000/'
+	adv_data1 = DatasetNPY(path_adv)
+	adv_data_loader1 = DataLoader(adv_data1, batch_size=batch_size, shuffle=True, num_workers=8)
 
-path_adv2 = f'{args.detection_datapath}/scores_adv_FGSM_0.00392_5single_vector_norm50perb_image10000/'
-adv_data2 = DatasetNPY(path_adv2)
-adv_data_loader2 = DataLoader(adv_data2, batch_size=batch_size, shuffle=True, num_workers=8)
+	path_adv2 = f'{datapath}/scores_adv_FGSM_0.00392_5single_vector_norm{t}perb_image10000/'
+	adv_data2 = DatasetNPY(path_adv2)
+	adv_data_loader2 = DataLoader(adv_data2, batch_size=batch_size, shuffle=True, num_workers=8)
 
 if '128' in path:
 	img_size = 128
@@ -206,13 +207,14 @@ def test(epoch, diffusion_t, dataset):
 			print('dataset:',dataset, 'epsilon:', epsilon)
 			for attack_method in attack_methods:
 				print(f"======attack_method: {attack_method}")
-				for t in [50]:
+				# for t in [50]:
+				if 1:
 					tile_name = f'scores_face_detect_clean_adv_{attack_method}_{epsilon}_5_{t}{isperb_image}'
 
-					path_cln = f'./score_diffusion_t_{dataset}_stand/scores_cleansingle_vector_norm{t}{isperb_image}{data_size}.npy'
-					path_adv = f'./score_diffusion_t_{dataset}_stand/scores_adv_{attack_method}_{epsilon}_5single_vector_norm{t}{isperb_image}{data_size}.npy'
+					path_cln = f'{args.detection_datapath}/score_diffusion_t_{dataset}_stand/scores_cleansingle_vector_norm{t}{isperb_image}{data_size}.npy'
+					path_adv = f'{args.detection_datapath}/score_diffusion_t_{dataset}_stand/scores_adv_{attack_method}_{epsilon}_5single_vector_norm{t}{isperb_image}{data_size}.npy'
 					
-					log_dir = f'score_diffusion_detect_{dataset}{isstand}/test/'
+					log_dir = f'{args.detection_datapath}/score_diffusion_detect_{dataset}{isstand}/test/'
 					os.makedirs(log_dir, exist_ok=True)
 					with torch.no_grad():
 						ref_list = []

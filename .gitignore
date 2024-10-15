@@ -57,3 +57,5 @@ stadv_eot*
 run_scripts*
 ICML*
 figure
+!net_D/cifar/8/logistic_regression_model.pkl
+!net_D/imagenet/6/logistic_regression_model.pkl
